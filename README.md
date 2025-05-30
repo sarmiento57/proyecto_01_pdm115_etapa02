@@ -1,4 +1,4 @@
-# Proyecto 01 - PDM115
+# Proyecto 01 - PDM115 - ETAPA 02
 
 # Control de Medicamentos y Artículos del Hogar
 

@@ -12,11 +12,19 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class LoginActivity extends AppCompatActivity {
 
     private final ControlBD  controlDB = new ControlBD(this);
+    private WebServiceHelper webServiceHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,6 +33,8 @@ public class LoginActivity extends AppCompatActivity {
         EditText usernameEditText = findViewById(R.id.login_username);
         EditText passwordEditText = findViewById(R.id.login_password);
         Button loginButton = findViewById(R.id.login_button);
+        Button mysqlButton = findViewById(R.id.login_mysql);
+        webServiceHelper = new WebServiceHelper(this);
 
         loginButton.setOnClickListener(v -> {
             String username = usernameEditText.getText().toString().trim();
@@ -38,6 +48,17 @@ public class LoginActivity extends AppCompatActivity {
             } else {
                 Toast.makeText(this, R.string.invalid_credentials, Toast.LENGTH_SHORT).show();
             }
+        });
+
+        mysqlButton.setOnClickListener(v -> {
+            String username = usernameEditText.getText().toString().trim();
+            String password = passwordEditText.getText().toString().trim();
+
+            if(username.isEmpty() || password.isEmpty()){
+                Toast.makeText(this, R.string.invalid_credentials, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            validarUsuarioMySQL(username, password);
         });
     }
 
@@ -78,5 +99,52 @@ public class LoginActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.connection_error, Toast.LENGTH_LONG).show();
         }
         return false;
+    }
+
+    private void validarUsuarioMySQL(String username, String password) {
+        Map<String, String> params = new HashMap<>();
+        params.put("usuario", username);
+        params.put("clave", password);
+
+        webServiceHelper.post("login_usuario.php", params,
+                response -> {
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        boolean success = json.getBoolean("success");
+
+                        if (success) {
+                            String idUsuario = json.getString("id_usuario");
+                            JSONArray permisos = json.getJSONArray("permisos");
+
+                            SharedPreferences prefs = getSharedPreferences("PERMISOS_APP", Context.MODE_PRIVATE);
+                            SharedPreferences.Editor editor = prefs.edit();
+                            editor.clear();
+
+                            for (int i = 0; i < permisos.length(); i++) {
+                                editor.putBoolean(permisos.getString(i), true);
+                                Log.d("LoginActivity", "Permiso guardado: " + permisos.getString(i));
+                            }
+
+                            editor.putString("id_usuario", idUsuario);
+                            editor.putString("user_name", username);
+                            editor.apply();
+
+                            Toast.makeText(this, getString(R.string.welcome_message) + " " + username, Toast.LENGTH_SHORT).show();
+                            startActivity(new Intent(this, MenuActivity.class));
+                            finish();
+                        } else {
+                            Toast.makeText(this, R.string.invalid_credentials, Toast.LENGTH_SHORT).show();
+                        }
+
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(this, R.string.connection_error, Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    error.printStackTrace();
+                    Toast.makeText(this, "Error de conexión: " + error.getMessage(), Toast.LENGTH_LONG).show();
+                }
+        );
     }
 }
