@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-
     <!-- Permiso de internet -->
     <uses-permission android:name="android.permission.INTERNET" />
-
 
     <application
         android:allowBackup="true"
@@ -16,6 +14,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ControlDeMedicamentosYArticulosDelHogar"
         tools:targetApi="31">
+        <activity android:name=".ArticuloMySQLActivity"
+            android:theme="@style/Theme.AppCompat.Dialog" />
         <activity
             android:name=".DetalleExistenciaActivity"
             android:exported="false" />

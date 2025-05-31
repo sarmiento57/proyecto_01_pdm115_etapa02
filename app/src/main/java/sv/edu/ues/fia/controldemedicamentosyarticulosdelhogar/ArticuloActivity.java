@@ -3,10 +3,12 @@ package sv.edu.ues.fia.controldemedicamentosyarticulosdelhogar;
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,9 +25,12 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.android.volley.Response;
+
 import org.w3c.dom.Text;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 
@@ -43,6 +48,8 @@ public class ArticuloActivity extends AppCompatActivity implements AdapterView.O
 
     private Articulo busqueda = new Articulo();
     private final ValidarAccesoCRUD vac = new ValidarAccesoCRUD(this);
+    private ArticuloMySQLDAO articuloMySQLDAO;
+
 
 
     @Override
@@ -54,6 +61,8 @@ public class ArticuloActivity extends AppCompatActivity implements AdapterView.O
         SQLiteDatabase conection = new ControlBD(this).getConnection();
         articuloDAO = new ArticuloDAO(this, conection);
         categoriaDAO = new CategoriaDAO(conection, this);
+        articuloMySQLDAO = new ArticuloMySQLDAO(this);
+
 
         //Spinner
         adaptadorSpinner = new ArrayAdapter<Categoria>(this, android.R.layout.simple_spinner_item, valuesCat) {
@@ -140,6 +149,14 @@ public class ArticuloActivity extends AppCompatActivity implements AdapterView.O
             showOptionsDialog(articulo);
         });
 
+        Button editarMysql = (Button) findViewById(R.id.editarMysql);
+        editarMysql.setOnClickListener(view -> {
+            Intent intent = new Intent(this, ArticuloMySQLActivity.class);
+            startActivity(intent);
+
+        });
+
+
     }
 
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -179,6 +196,8 @@ public class ArticuloActivity extends AppCompatActivity implements AdapterView.O
         valuesCat.addAll(categoriaDAO.getAllRows());
         adaptadorSpinner.notifyDataSetChanged();
     }
+
+
 
     public void showAddDialog() {
         int numRegistros = 0;
@@ -420,19 +439,20 @@ public class ArticuloActivity extends AppCompatActivity implements AdapterView.O
                 double precio = Double.parseDouble(precioTexto);
 
                 Articulo art = new Articulo(id, brand, ROA, subCat, PF, nombre, descripcion, restringido, precio);
-                boolean exito = articuloDAO.insertarArticulo(art);
-                if (exito) {
-                    dialog.dismiss();
-                    actualizarListView(selected);
-                } else {
-                    Toast.makeText(this, getString(R.string.save_error), Toast.LENGTH_LONG).show();
-                }
+
+                articuloDAO.insertarArticulo(art, articuloMySQLDAO, success -> {
+                    if (success) {
+                        dialog.dismiss();
+                        actualizarListView(selected);
+                    } else {
+                        Toast.makeText(this, getString(R.string.save_error), Toast.LENGTH_LONG).show();
+                    }
+                });
+
             } catch (NumberFormatException e) {
                 Toast.makeText(this, getString(R.string.only_numbers), Toast.LENGTH_SHORT).show();
             }
         });
-
-
 
         dialog.show();
     }
@@ -722,6 +742,8 @@ public class ArticuloActivity extends AppCompatActivity implements AdapterView.O
             listV.setVisibility(View.INVISIBLE);
         }
     }
+
+
 
 
     public void editArticulo(Articulo articulo, AlertDialog dialogoPadre) {

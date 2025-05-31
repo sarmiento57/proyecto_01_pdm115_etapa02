@@ -6,8 +6,17 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.widget.Toast;
 
+import com.android.volley.Response;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ArticuloDAO {
     private SQLiteDatabase dbConection;
@@ -18,40 +27,46 @@ public class ArticuloDAO {
         this.dbConection = dbConection;
     }
 
-    public ArticuloDAO() {
-    }
 
-    public boolean insertarArticulo(Articulo articulo) {
-        long insercion = 0;
-        //Comprobar que existan los registros de las llaves foraneas
-        boolean marcaValida = validarForaneas(articulo.getIdMarca(), 1);
-        boolean viaAdminValida = validarForaneas(articulo.getIdViaAdministracion(), 2);
-        boolean subCatValida = validarForaneas(articulo.getIdSubCategoria(), 3);
-        boolean formaFarmValida = validarForaneas(articulo.getIdFormaFarmaceutica(), 4);
-        if (marcaValida && viaAdminValida && subCatValida && formaFarmValida) {
-            ContentValues item = new ContentValues();
-            item.put("IDARTICULO", articulo.getIdArticulo());
-            item.put("IDMARCA", articulo.getIdMarca());
-            item.put("IDVIAADMINISTRACION", articulo.getIdViaAdministracion());
-            item.put("IDSUBCATEGORIA", articulo.getIdSubCategoria());
-            item.put("IDFORMAFARMACEUTICA", articulo.getIdFormaFarmaceutica());
-            item.put("NOMBREARTICULO", articulo.getNombreArticulo());
-            item.put("DESCRIPCIONARTICULO", articulo.getDescripcionArticulo());
-            item.put("RESTRINGIDOARTICULO", articulo.getRestringidoArticulo());
-            item.put("PRECIOARTICULO", articulo.getPrecioArticulo());
-
-            insercion = dbConection.insert("ARTICULO", null, item);
-            if (insercion == -1) {
-                Toast.makeText(this.context, R.string.duplicate_message, Toast.LENGTH_SHORT).show();
-                return false;
+    public void insertarArticulo(Articulo articulo, ArticuloMySQLDAO mysqlDAO, CallbackBoolean callback) {
+        mysqlDAO.tablasSincronizadas(this, sincronizado -> {
+            if (!sincronizado) {
+                Toast.makeText(context, "Las tablas no están sincronizadas, sincronice primero.", Toast.LENGTH_LONG).show();
+                callback.onResult(false);
+                return;
             }
-            Toast.makeText(context, R.string.save_message, Toast.LENGTH_SHORT).show();
-            return true;
-        } else {
-            return false;
-        }
-    }
 
+            // Validación foráneas
+            boolean marcaValida = validarForaneas(articulo.getIdMarca(), 1);
+            boolean viaAdminValida = validarForaneas(articulo.getIdViaAdministracion(), 2);
+            boolean subCatValida = validarForaneas(articulo.getIdSubCategoria(), 3);
+            boolean formaFarmValida = validarForaneas(articulo.getIdFormaFarmaceutica(), 4);
+
+            if (marcaValida && viaAdminValida && subCatValida && formaFarmValida) {
+                ContentValues item = new ContentValues();
+                item.put("IDARTICULO", articulo.getIdArticulo());
+                item.put("IDMARCA", articulo.getIdMarca());
+                item.put("IDVIAADMINISTRACION", articulo.getIdViaAdministracion());
+                item.put("IDSUBCATEGORIA", articulo.getIdSubCategoria());
+                item.put("IDFORMAFARMACEUTICA", articulo.getIdFormaFarmaceutica());
+                item.put("NOMBREARTICULO", articulo.getNombreArticulo());
+                item.put("DESCRIPCIONARTICULO", articulo.getDescripcionArticulo());
+                item.put("RESTRINGIDOARTICULO", articulo.getRestringidoArticulo());
+                item.put("PRECIOARTICULO", articulo.getPrecioArticulo());
+
+                long insercion = dbConection.insert("ARTICULO", null, item);
+                if (insercion == -1) {
+                    Toast.makeText(context, "Error: registro duplicado o fallo en inserción", Toast.LENGTH_SHORT).show();
+                    callback.onResult(false);
+                } else {
+                    Toast.makeText(context, "Artículo insertado correctamente", Toast.LENGTH_SHORT).show();
+                    callback.onResult(true);
+                }
+            } else {
+                callback.onResult(false);
+            }
+        });
+    }
     public Articulo getArticulo(int id){
         String [] idArticulo = {String.valueOf(id)};
         Cursor cursor = getDbConection().query("ARTICULO",null, "IDARTICULO = ?",idArticulo,null,null,null );
@@ -74,6 +89,18 @@ public class ArticuloDAO {
             Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
             return null;
         }
+    }
+
+    public List<Integer> getAllIdsSQLite() {
+        List<Integer> ids = new ArrayList<>();
+        Cursor cursor = dbConection.query("ARTICULO", new String[]{"IDARTICULO"}, null, null, null, null, null);
+        if (cursor.moveToFirst()) {
+            do {
+                ids.add(cursor.getInt(cursor.getColumnIndexOrThrow("IDARTICULO")));
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        return ids;
     }
 
     public ArrayList<Articulo> getAllRows() {

@@ -8,6 +8,7 @@ import android.util.Log;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -88,6 +89,31 @@ public class MenuActivity extends AppCompatActivity {
             ControlBD controlBD = new ControlBD(this);
             controlBD.llenarDB();
         });
+
+        Button mysql = (Button) findViewById(R.id.llenarMySql);
+        mysql.setOnClickListener(v -> {
+            Log.d("LlenarBD", "Ejecutando el script...");
+            mysql.setEnabled(false);
+            ejecutarScriptDeInsercion();
+        });
+    }
+
+    // Método para ejecutar el script en el servidor
+    private void ejecutarScriptDeInsercion() {
+        WebServiceHelper webServiceHelper = new WebServiceHelper(this);
+        Log.d("LlenarBD", "Ejecutando el script de inserción");
+        webServiceHelper.ejecutarTestDataScript(response -> {
+            Log.d("LlenarBD", "Datos insertados correctamente: " + response);
+            Toast.makeText(MenuActivity.this, "Datos insertados correctamente", Toast.LENGTH_SHORT).show();
+            Button llenarBD = findViewById(R.id.llenarDB);
+            llenarBD.setEnabled(true);
+        }, error -> {
+            Log.e("LlenarBD", "Error al insertar datos: " + error.getMessage());
+            Toast.makeText(MenuActivity.this, "Error al insertar datos", Toast.LENGTH_SHORT).show();
+            Button llenarBD = findViewById(R.id.llenarDB);
+            llenarBD.setEnabled(true);
+        });
+
     }
 
     private int[] getIconos(String [] nombreRecurso) {

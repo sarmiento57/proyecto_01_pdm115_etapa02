@@ -138,10 +138,9 @@
     <string name="mostrar_articulo">Show Items</string>
 
 
-
     <!--    End Existence detail-->
 
-<!--    direccion-->
+    <!--    direccion-->
     <string name="select_departamento">Select a Department </string>
     <string name="select_municipio"> Select a municipality</string>
     <string name="select_distrito"> Select a district</string>
@@ -156,7 +155,7 @@
 
     <!--  End direccion-->
 
-<!--    select_valid_dep_mun_dis -->
+    <!--    select_valid_dep_mun_dis -->
 
 
     <!--Articulo-->
@@ -190,8 +189,6 @@
     <string name="pharmaceuticalFormID">Pharmaceutical Form ID</string>
 
     <string name="emptyWarning">This field is required</string>
-
-
 
 
     <!--Fin Articulo-->

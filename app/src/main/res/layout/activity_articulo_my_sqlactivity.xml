@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/itemImage"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            app:srcCompat="@drawable/item" />
+
+        <TextView
+            android:id="@+id/itemHeading"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:text="Articulos MYSQL"
+            android:textAlignment="center"
+            android:textStyle="bold"
+            tools:ignore="RtlCompat" />
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/editTextSearchItemMySQL"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Search" />
+
+
+    <ListView
+        android:id="@+id/itemListvMySQL"
+        android:layout_width="fill_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:baselineAligned="false" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnAddItemMySQL"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="5"
+            android:text="@string/add" />
+
+        <Button
+            android:id="@+id/btnSearchItemMySQL"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="5"
+            android:text="@string/search" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/brnSincronizarSqlite"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="5"
+            android:text="Sincronizar db" />
+    </LinearLayout>
+</LinearLayout>
