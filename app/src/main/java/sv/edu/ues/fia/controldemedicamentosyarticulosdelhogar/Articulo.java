@@ -113,7 +113,8 @@ public class Articulo {
         if (getIdArticulo() == -1) {
             return context.getString(R.string.select_articulo);
         }
-        return "ID Articulo : " + getIdArticulo() + "\n" +"Nombre: " + getNombreArticulo();
+        return "ID Articulo : " + getIdArticulo() + "\n" +"Nombre: " +
+                getNombreArticulo() + "\n" + "Precio: " + getPrecioArticulo();
     }
 }
 

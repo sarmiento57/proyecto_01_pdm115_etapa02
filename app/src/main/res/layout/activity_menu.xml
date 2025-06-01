@@ -42,13 +42,6 @@
                     android:text="@string/fill_database"
                     android:backgroundTint="@color/green"/>
 
-                <Button
-                    android:id="@+id/llenarMySql"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:textAlignment="textStart"
-                    android:text="MySql"
-                    android:backgroundTint="@color/green"/>
 
                 <TextView
                     android:id="@+id/tvUsername"

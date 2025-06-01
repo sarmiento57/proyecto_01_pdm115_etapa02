@@ -88,14 +88,12 @@ public class MenuActivity extends AppCompatActivity {
             llenarBD.setEnabled(false);
             ControlBD controlBD = new ControlBD(this);
             controlBD.llenarDB();
-        });
 
-        Button mysql = (Button) findViewById(R.id.llenarMySql);
-        mysql.setOnClickListener(v -> {
             Log.d("LlenarBD", "Ejecutando el script...");
-            mysql.setEnabled(false);
+            llenarBD.setEnabled(false);
             ejecutarScriptDeInsercion();
         });
+
     }
 
     // Método para ejecutar el script en el servidor
@@ -104,7 +102,7 @@ public class MenuActivity extends AppCompatActivity {
         Log.d("LlenarBD", "Ejecutando el script de inserción");
         webServiceHelper.ejecutarTestDataScript(response -> {
             Log.d("LlenarBD", "Datos insertados correctamente: " + response);
-            Toast.makeText(MenuActivity.this, "Datos insertados correctamente", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MenuActivity.this, R.string.data_inserted, Toast.LENGTH_SHORT).show();
             Button llenarBD = findViewById(R.id.llenarDB);
             llenarBD.setEnabled(true);
         }, error -> {

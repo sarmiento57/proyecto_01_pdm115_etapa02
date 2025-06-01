@@ -23,15 +23,17 @@ public class DoctorActivity extends AppCompatActivity {
     private ArrayAdapter<Doctor> adaptadorDoctores;
     private List<Doctor> listaDoctores;
     private ListView listViewDoctores;
+    private SQLiteDatabase conection;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_doctor);
 
-        // Initialize DAO with SQLite connection
-        SQLiteDatabase conexionDB = new ControlBD(this).getConnection();
-        doctorDAO = new DoctorDAO(conexionDB, this);
+        //conexion con las 2 db
+        conection = new ControlBD(this).getConnection();
+        doctorDAO = new DoctorDAO(this, conection);
 
         TextView txtBusqueda = (TextView) findViewById(R.id.searchDcctor);
 
@@ -66,6 +68,18 @@ public class DoctorActivity extends AppCompatActivity {
                 showOptionsDialog(doctor);
             }
         });
+
+        //Sincronizar con MySQL
+        Button btnSincronizarMysql = findViewById(R.id.btnSincronizarDoctorMySQL);
+        btnSincronizarMysql.setOnClickListener(v -> {
+            doctorDAO.getAllDoctorsSQLite(doctores -> {
+                for (Doctor doctor : doctores) {
+                    doctorDAO.sincronizarDoctorMysql(doctor);
+                }
+                Toast.makeText(this, R.string.sync_completed, Toast.LENGTH_SHORT).show();
+            });
+        });
+
     }
 
     private void fillList() {
@@ -133,33 +147,40 @@ public class DoctorActivity extends AppCompatActivity {
                 dialog.dismiss();
             }
         });
-
-        dialogView.findViewById(R.id.buttonDelete).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(vac.validarAcceso(4))
-                    eliminarDoctor(doctor.getIdDoctor());
-                else
-                    Toast.makeText(getApplicationContext(), R.string.action_block, Toast.LENGTH_LONG).show();
-                dialog.dismiss();
+        //Eliminar en sqlite y mysql
+        dialogView.findViewById(R.id.buttonDelete).setOnClickListener(v -> {
+            if(vac.validarAcceso(4)) {
+                eliminarDoctor(doctor.getIdDoctor());
+                fillList();
+            } else {
+                Toast.makeText(getApplicationContext(), R.string.action_block, Toast.LENGTH_LONG).show();
             }
+            dialog.dismiss();
         });
+
 
         dialog.show();
     }
 
     private void guardarDoctor(EditText editTextIdDoctor, EditText editTextNombreDoctor, EditText editTextEspecialidadDoctor, EditText editTextJvpm) {
-        int id = Integer.parseInt(editTextIdDoctor.getText().toString());
-        String nombre = editTextNombreDoctor.getText().toString().trim();
-        String especialidad = editTextEspecialidadDoctor.getText().toString().trim();
-        String jvpm = editTextJvpm.getText().toString().trim();
+        try {
+            int id = Integer.parseInt(editTextIdDoctor.getText().toString());
+            String nombre = editTextNombreDoctor.getText().toString().trim();
+            String especialidad = editTextEspecialidadDoctor.getText().toString().trim();
+            String jvpm = editTextJvpm.getText().toString().trim();
 
-        Doctor doctor = new Doctor(id, nombre, especialidad, jvpm, this);
-        doctorDAO.addDoctor(doctor);
+            Doctor doctor = new Doctor(id, nombre, especialidad, jvpm, this);
 
-        fillList();
-
-        limpiarCampos(editTextIdDoctor, editTextNombreDoctor, editTextEspecialidadDoctor, editTextJvpm);
+            doctorDAO.addDoctor(doctor, success -> {
+                if (success) {
+                    fillList();
+                    limpiarCampos(editTextIdDoctor, editTextNombreDoctor, editTextEspecialidadDoctor, editTextJvpm);
+                } else {
+                }
+            });
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, R.string.invalid_id, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void limpiarCampos(EditText... fields) {
@@ -250,19 +271,19 @@ public class DoctorActivity extends AppCompatActivity {
         });
         dialog.show();
     }
-
+    //eliminar en sqlite y mysql
     private void eliminarDoctor(int id) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.confirm_delete);
         builder.setMessage(getString(R.string.confirm_delete_message) + ": " + id);
         builder.setPositiveButton(R.string.yes, (dialog, which) -> {
-            doctorDAO.deleteDoctor(id);
-            fillList(); // Refresh the ListView
+            doctorDAO.deleteDoctor(id, () -> fillList());
         });
         builder.setNegativeButton(R.string.no, (dialog, which) -> dialog.dismiss());
         AlertDialog dialog = builder.create();
         dialog.show();
     }
+
 
     private void buscarDoctorPorId(int id) {
         Doctor doctor = doctorDAO.getDoctor(id);

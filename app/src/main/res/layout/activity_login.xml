@@ -58,7 +58,7 @@
             android:id="@+id/login_mysql"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Login MySQL" />
+            android:text="@string/login_mysql" />
 
     </LinearLayout>
 </ScrollView>

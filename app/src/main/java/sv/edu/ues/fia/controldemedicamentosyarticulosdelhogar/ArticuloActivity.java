@@ -49,16 +49,21 @@ public class ArticuloActivity extends AppCompatActivity implements AdapterView.O
     private Articulo busqueda = new Articulo();
     private final ValidarAccesoCRUD vac = new ValidarAccesoCRUD(this);
     private ArticuloMySQLDAO articuloMySQLDAO;
+    private SQLiteDatabase conection;
 
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Quitar título del diálogo
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
+        }
         setContentView(R.layout.activity_articulo);
 
         //Database conection
-        SQLiteDatabase conection = new ControlBD(this).getConnection();
+        conection = new ControlBD(this).getConnection();
         articuloDAO = new ArticuloDAO(this, conection);
         categoriaDAO = new CategoriaDAO(conection, this);
         articuloMySQLDAO = new ArticuloMySQLDAO(this);
@@ -148,15 +153,43 @@ public class ArticuloActivity extends AppCompatActivity implements AdapterView.O
             Articulo articulo = (Articulo) parent.getItemAtPosition(position);
             showOptionsDialog(articulo);
         });
-
+        //Abrir activity mysql
         Button editarMysql = (Button) findViewById(R.id.editarMysql);
         editarMysql.setOnClickListener(view -> {
             Intent intent = new Intent(this, ArticuloMySQLActivity.class);
             startActivity(intent);
-
         });
 
+        //Sincronizar con MySQL
+        Button btnSincronizarMysql = findViewById(R.id.btnSincronizarMySQL);
+        btnSincronizarMysql.setOnClickListener(v -> {
+            articuloDAO.getAllArticulosSQLite(articulos -> {
+                for (Articulo articulo : articulos) {
+                    articuloMySQLDAO.sincronizarSqliteConMySQL(articulo);
+                }
+                Toast.makeText(this, R.string.sync_completed, Toast.LENGTH_SHORT).show();
+            });
+        });
 
+        //Actualizar precio
+        Button btnActualizarPrecio = findViewById(R.id.precioMysql);
+        btnActualizarPrecio.setOnClickListener(v -> {
+            articuloMySQLDAO.actualizarPrecioSqlite(conection, () -> {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, R.string.prices_updated, Toast.LENGTH_SHORT).show();
+                    actualizarListView(selected);
+                });
+            });
+        });
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (conection != null && conection.isOpen()) {
+            conection.close();
+        }
     }
 
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {

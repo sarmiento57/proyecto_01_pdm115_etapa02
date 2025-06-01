@@ -15,7 +15,7 @@
         android:theme="@style/Theme.ControlDeMedicamentosYArticulosDelHogar"
         tools:targetApi="31">
         <activity android:name=".ArticuloMySQLActivity"
-            android:theme="@style/Theme.AppCompat.Dialog" />
+            android:theme="@style/Theme.AppCompat.Dialog.NoTitle" />
         <activity
             android:name=".DetalleExistenciaActivity"
             android:exported="false" />

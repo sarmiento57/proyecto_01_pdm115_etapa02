@@ -79,5 +79,19 @@
             android:text="@string/search" />
     </LinearLayout>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnSincronizarDoctorMySQL"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="5"
+            android:text="@string/sync_mysql" />
+    </LinearLayout>
+
 </LinearLayout>
 

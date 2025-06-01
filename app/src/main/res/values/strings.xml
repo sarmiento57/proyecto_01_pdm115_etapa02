@@ -301,5 +301,28 @@
     <string name="error_select_categoria">You must select a valid category</string>
     <string name="error_guardar_subcategoria">Error saving the subcategory</string>
 
+    <!-- Nuevos -->
+    <string name="login_mysql">Login MySQL</string>
+    <string name="sync_mysql">Sync MySQL</string>
+    <string name="update_price">Update Price</string>
+    <string name="article_mysql">Article MySQL</string>
+    <string name="articles_mysql">Articles MySQL</string>
+    <string name="sync_sqlite">Sync SQLite</string>
+
+    <string name="sync_completed">Synchronization completed</string>
+    <string name="invalid_id">ID must be a valid number</string>
+    <string name="mysql_count_error">Connection error while counting doctors in MySQL</string>
+    <string name="mysql_sync_error">Connection error while syncing with MySQL</string>
+    <string name="tables_not_synced">Tables are not synced, please sync first.</string>
+    <string name="doctor_insert_error">Error inserting doctor</string>
+    <string name="mysql_delete_error">Error deleting in MySQL</string>
+    <string name="mysql_delete_connection_error">Connection error while deleting doctor in MySQL. Not deleted locally.</string>
+
+    <string name="option_all">All</string>
+    <string name="option_cheaper">Cheaper</string>
+    <string name="option_expensive">More expensive</string>
+
+    <string name="prices_updated">Prices updated successfully</string>
+    <string name="data_inserted">Data inserted successfully</string>
 
 </resources>

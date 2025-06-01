@@ -5,8 +5,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -21,12 +20,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.android.volley.Response;
-
-import java.text.NumberFormat;
-import java.text.ParseException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 
 
 public class ArticuloMySQLActivity extends AppCompatActivity {
@@ -59,23 +54,72 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
             Articulo articulo = (Articulo) parent.getItemAtPosition(position);
             showOptionsDialog(articulo);
         });
+        TextView txtBusqueda = findViewById(R.id.edtSearchItemSqliteMysql);
+        //Buscar
+        Button btnBuscarArticuloPorId = findViewById(R.id.btnSearchItemMySQL);
+        btnBuscarArticuloPorId.setVisibility(vac.validarAcceso(2) || vac.validarAcceso(3) || vac.validarAcceso(4) ? View.VISIBLE : View.INVISIBLE);
+        btnBuscarArticuloPorId.setOnClickListener(v -> {
+            try {
+                int id = Integer.parseInt(txtBusqueda.getText().toString().trim());
+                buscarArticulo(id);
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+                Toast.makeText(this, R.string.invalid_search, Toast.LENGTH_LONG).show();
+            }
+        });
 
         //agregar
         Button btnAddItemMySQL = findViewById(R.id.btnAddItemMySQL);
         btnAddItemMySQL.setVisibility(vac.validarAcceso(1) ? View.VISIBLE : View.INVISIBLE);
         btnAddItemMySQL.setOnClickListener(v -> showAddDialog());
-
+        // sincronizar con sqlite
         Button btnSincronizarSqlite = findViewById(R.id.brnSincronizarSqlite);
         btnSincronizarSqlite.setOnClickListener(v -> {
             articuloMySQLDAO.getAllArticuloMySQL(articulos -> {
                 for (Articulo articulo : articulos) {
                     articuloMySQLDAO.sincronizarMySQLConSqlite(articulo);
                 }
-                Toast.makeText(this, "Sincronización completada", Toast.LENGTH_SHORT).show();
-                conection.close();  // Cierra la base solo después de terminar la inserción
+                Toast.makeText(this, R.string.sync_completed, Toast.LENGTH_SHORT).show();
+                conection.close();
             });
         });
+        //consultar precio mas barato o caro los ordena por precio
+        Spinner spinnerOrden = findViewById(R.id.spinnerOrdenPrecio);
+        ArrayAdapter<String> adapterSpinner = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item,
+                Arrays.asList(getString(R.string.option_all), getString(R.string.option_cheaper), getString(R.string.option_expensive)));
+        adapterSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerOrden.setAdapter(adapterSpinner);
 
+        spinnerOrden.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) {
+                    //Mestra todos los articulos
+                    articuloMySQLDAO.getAllArticuloMySQL(articulos -> {
+                        runOnUiThread(() -> {
+                            listaArticuloMySQ.clear();
+                            listaArticuloMySQ.addAll(articulos);
+                            adapterArticuloMySQ.notifyDataSetChanged();
+                        });
+                    });
+                } else {
+                    // mas barato o mas caro
+                    String orden = position == 1 ? "asc" : "desc";  // 1 = Más barato, 2 = Más caro
+                    articuloMySQLDAO.getArticulosOrdenadosPorPrecio(orden, articulos -> {
+                        runOnUiThread(() -> {
+                            listaArticuloMySQ.clear();
+                            listaArticuloMySQ.addAll(articulos);
+                            adapterArticuloMySQ.notifyDataSetChanged();
+                        });
+                    });
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
     }
     private void fillList() {
         articuloMySQLDAO.getAllArticuloMySQL(articulos -> runOnUiThread(() -> {
@@ -84,7 +128,6 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
             listViewArticuloMySQ.setAdapter(adapterArticuloMySQ);
         }));
     }
-
     private void showOptionsDialog(final Articulo articulo) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.options);
@@ -94,6 +137,13 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
 
         final AlertDialog dialog = builder.create();
 
+        dialogView.findViewById(R.id.buttonView).setOnClickListener(v -> {
+            if(vac.validarAcceso(2))
+                viewArticuloMySQL(articulo);
+            else
+                Toast.makeText(getApplicationContext(), R.string.action_block, Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        });
 
         dialogView.findViewById(R.id.buttonEdit).setOnClickListener(v -> {
             if(vac.validarAcceso(2)){
@@ -105,7 +155,13 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
                 dialog.dismiss();
             }
         });
-
+        dialogView.findViewById(R.id.buttonDelete).setOnClickListener(v -> {
+            if(vac.validarAcceso(4))
+                deleteArticulo(articulo.getIdArticulo());
+            else
+                Toast.makeText(getApplicationContext(), R.string.action_block, Toast.LENGTH_LONG).show();
+            dialog.dismiss();
+        });
         dialog.show();
     }
     private void showAddDialog() {
@@ -132,13 +188,14 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         articuloMySQLDAO.getAllMarcasMySQL(new Response.Listener<List<Marca>>() {
             @Override
             public void onResponse(List<Marca> marcas) {
-                marcas.add(0, new Marca(-1, null, ArticuloMySQLActivity.this));
+                marcas.add(0, new Marca(-1, getString(R.string.select_brand), ArticuloMySQLActivity.this));
                 ArrayAdapter<Marca> adapterMarca = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, marcas) {
                     @Override
                     public View getView(int position, View convertView, ViewGroup parent) {
                         TextView view = (TextView) super.getView(position, convertView, parent);
                         Marca marca = getItem(position);
                         if (marca.getIdMarca() == -1) {
+                            view.setText(R.string.select_brand);
                         } else {
                             view.setText(marca.getNombreMarca()); // Only show name in the Spinner
                         }
@@ -165,13 +222,14 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         articuloMySQLDAO.getAllViaAdministracionMySQL(new Response.Listener<List<ViaAdministracion>>() {
             @Override
             public void onResponse(List<ViaAdministracion> viaAdministracions) {
-                viaAdministracions.add(0, new ViaAdministracion(-1, null, ArticuloMySQLActivity.this));
+                viaAdministracions.add(0, new ViaAdministracion(-1, getString(R.string.select_admin_route), ArticuloMySQLActivity.this));
                 ArrayAdapter<ViaAdministracion> adaptarViaAdministracion = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, viaAdministracions) {
                     @Override
                     public View getView(int position, View convertView, ViewGroup parent) {
                         TextView view = (TextView) super.getView(position, convertView, parent);
                         ViaAdministracion viaAdministracion = getItem(position);
                         if (viaAdministracion.getIdViaAdministracion() == -1) {
+                            view.setText(R.string.select_admin_route);
                         } else {
                             view.setText(viaAdministracion.getTipoAdministracion()); // Only show name in the Spinner
                         }
@@ -198,13 +256,14 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         articuloMySQLDAO.getAllSubCategoriaMySQL(new Response.Listener<List<SubCategoria>>() {
             @Override
             public void onResponse(List<SubCategoria> subCategorias) {
-                subCategorias.add(0, new SubCategoria(-1, null, ArticuloMySQLActivity.this));
+                subCategorias.add(0, new SubCategoria(-1, getString(R.string.select_subcategory), ArticuloMySQLActivity.this));
                 ArrayAdapter<SubCategoria> adapterSubCat = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, subCategorias) {
                     @Override
                     public View getView(int position, View convertView, ViewGroup parent) {
                         TextView view = (TextView) super.getView(position, convertView, parent);
                         SubCategoria subCategoria = getItem(position);
                         if (subCategoria.getIdCategoria() == -1) {
+                            view.setText(R.string.select_subcategory);
                         } else {
                             view.setText(subCategoria.getNombreSubCategoria()); // Only show name in the Spinner
                         }
@@ -231,13 +290,14 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         articuloMySQLDAO.getAllFormaFarmaceuticaMySQL(new Response.Listener<List<FormaFarmaceutica>>() {
             @Override
             public void onResponse(List<FormaFarmaceutica> formaFarmaceuticas) {
-                formaFarmaceuticas.add(0, new FormaFarmaceutica(-1, null, ArticuloMySQLActivity.this));
+                formaFarmaceuticas.add(0, new FormaFarmaceutica(-1, getString(R.string.select_pharma_form), ArticuloMySQLActivity.this));
                 ArrayAdapter<FormaFarmaceutica> adapterForma = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, formaFarmaceuticas) {
                     @Override
                     public View getView(int position, View convertView, ViewGroup parent) {
                         TextView view = (TextView) super.getView(position, convertView, parent);
                         FormaFarmaceutica formaFarmaceutica = getItem(position);
                         if (formaFarmaceutica.getIdFormaFarmaceutica() == -1) {
+                            view.setText(getString(R.string.select_pharma_form));
                         } else {
                             view.setText(formaFarmaceutica.getTipoFormaFarmaceutica()); // Only show name in the Spinner
                         }
@@ -378,14 +438,27 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         articuloMySQLDAO.getAllMarcasMySQL(new Response.Listener<List<Marca>>() {
             @Override
             public void onResponse(List<Marca> marcas) {
+                marcas.add(0, new Marca(-1, getString(R.string.select_brand), ArticuloMySQLActivity.this));
                 ArrayAdapter<Marca> adapterMarca = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, marcas) {
                     @Override
                     public View getView(int position, View convertView, ViewGroup parent) {
                         TextView view = (TextView) super.getView(position, convertView, parent);
                         Marca marca = getItem(position);
                         if (marca.getIdMarca() == -1) {
+                            view.setText(R.string.select_brand);
                         } else {
                             view.setText(marca.getNombreMarca()); // Only show name in the Spinner
+                        }
+                        return view;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                        Marca marca = getItem(position);
+                        if (marca.getIdMarca() == -1) {
+                            view.setText(R.string.select_brand);
+                        } else {
+                            view.setText(marca.getNombreMarca() + " (" + marca.getIdMarca() + ")");
                         }
                         return view;
                     }
@@ -407,14 +480,27 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         articuloMySQLDAO.getAllViaAdministracionMySQL(new Response.Listener<List<ViaAdministracion>>() {
             @Override
             public void onResponse(List<ViaAdministracion> viaAdministracions) {
+                viaAdministracions.add(0, new ViaAdministracion(-1, getString(R.string.select_admin_route), ArticuloMySQLActivity.this));
                 ArrayAdapter<ViaAdministracion> adaptarViaAdministracion = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, viaAdministracions) {
                     @Override
                     public View getView(int position, View convertView, ViewGroup parent) {
                         TextView view = (TextView) super.getView(position, convertView, parent);
                         ViaAdministracion viaAdministracion = getItem(position);
                         if (viaAdministracion.getIdViaAdministracion() == -1) {
+                            view.setText(R.string.select_admin_route);
                         } else {
                             view.setText(viaAdministracion.getTipoAdministracion()); // Only show name in the Spinner
+                        }
+                        return view;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                        ViaAdministracion viaAdministracion = getItem(position);
+                        if (viaAdministracion.getIdViaAdministracion() == -1) {
+                            view.setText(R.string.select_admin_route);
+                        } else {
+                            view.setText(viaAdministracion.getTipoAdministracion() + " (" + viaAdministracion.getIdViaAdministracion() + ")");
                         }
                         return view;
                     }
@@ -436,14 +522,27 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         articuloMySQLDAO.getAllSubCategoriaMySQL(new Response.Listener<List<SubCategoria>>() {
             @Override
             public void onResponse(List<SubCategoria> subCategorias) {
+                subCategorias.add(0, new SubCategoria(-1, getString(R.string.select_subcategory), ArticuloMySQLActivity.this));
                 ArrayAdapter<SubCategoria> adapterSubCat = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, subCategorias) {
                     @Override
                     public View getView(int position, View convertView, ViewGroup parent) {
                         TextView view = (TextView) super.getView(position, convertView, parent);
                         SubCategoria subCategoria = getItem(position);
                         if (subCategoria.getIdCategoria() == -1) {
+                            view.setText(R.string.select_subcategory);
                         } else {
                             view.setText(subCategoria.getNombreSubCategoria()); // Only show name in the Spinner
+                        }
+                        return view;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                        SubCategoria subCategoria = getItem(position);
+                        if (subCategoria.getIdCategoria() == -1) {
+                            view.setText(R.string.select_subcategory);
+                        } else {
+                            view.setText(subCategoria.getNombreSubCategoria() + " (" + subCategoria.getIdCategoria() + ")");
                         }
                         return view;
                     }
@@ -453,7 +552,7 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
 
                 // Set selected item in the spinner
                 for (int i = 0; i < subCategorias.size(); i++) {
-                    if (subCategorias.get(i).getIdCategoria() == articulo.getIdSubCategoria()) {
+                    if (subCategorias.get(i).getIdSubCategoria() == articulo.getIdSubCategoria()) {
                         spinnerItemSubCategoria.setSelection(i);
                         break;
                     }
@@ -465,14 +564,27 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         articuloMySQLDAO.getAllFormaFarmaceuticaMySQL(new Response.Listener<List<FormaFarmaceutica>>() {
             @Override
             public void onResponse(List<FormaFarmaceutica> formaFarmaceuticas) {
+                formaFarmaceuticas.add(0, new FormaFarmaceutica(-1, getString(R.string.select_pharma_form), ArticuloMySQLActivity.this));
                 ArrayAdapter<FormaFarmaceutica> adapterForma = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, formaFarmaceuticas) {
                     @Override
                     public View getView(int position, View convertView, ViewGroup parent) {
                         TextView view = (TextView) super.getView(position, convertView, parent);
                         FormaFarmaceutica formaFarmaceutica = getItem(position);
                         if (formaFarmaceutica.getIdFormaFarmaceutica() == -1) {
+                            view.setText(getString(R.string.select_pharma_form));
                         } else {
                             view.setText(formaFarmaceutica.getTipoFormaFarmaceutica()); // Only show name in the Spinner
+                        }
+                        return view;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                        FormaFarmaceutica formaFarmaceutica = getItem(position);
+                        if (formaFarmaceutica.getIdFormaFarmaceutica() == -1) {
+                            view.setText(getString(R.string.select_pharma_form));
+                        } else {
+                            view.setText(formaFarmaceutica.getTipoFormaFarmaceutica() + " (" + formaFarmaceutica.getIdFormaFarmaceutica() + ")");
                         }
                         return view;
                     }
@@ -524,5 +636,250 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
         });
 
         dialog.show();
+    }
+    //eliminar articulo de mysql
+    private void deleteArticulo(int idarticulo) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.confirm_delete);
+        builder.setMessage(getString(R.string.confirm_delete_message) + ": " + idarticulo);
+
+        builder.setPositiveButton(R.string.yes, (dialog, which) -> {
+            articuloMySQLDAO.deleteArticuloMySQL(idarticulo, response -> {
+                fillList();
+            });
+            dialog.dismiss();
+        });
+
+        builder.setNegativeButton(R.string.no, (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+    //ver articulo de mysql
+    private void viewArticuloMySQL(Articulo articulo) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.view);
+
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_articulo, null);
+        builder.setView(dialogView);
+
+        Spinner spinnerItemMarca = dialogView.findViewById(R.id.spinnerItemMarca);
+        Spinner spinnerItemROA = dialogView.findViewById(R.id.spinnerItemROA);
+        Spinner spinnerItemSubCategoria = dialogView.findViewById(R.id.spinnerItemSubCategoria);
+        Spinner spinnerItemFormaFarmaceutica = dialogView.findViewById(R.id.spinnerItemFormaFarmaceutica);
+
+        EditText idArticulo = dialogView.findViewById(R.id.editTextItemId);
+        EditText name = dialogView.findViewById(R.id.editTextItemName);
+        EditText description = dialogView.findViewById(R.id.editTextItemDescription);
+        CheckBox isRestricted = dialogView.findViewById(R.id.checkBoxItemRestricted);
+        EditText price = dialogView.findViewById(R.id.editTextItemPrice);
+
+        spinnerItemMarca.setEnabled(false);  // Hacer el spinner de Farmacia no editable
+        spinnerItemROA.setEnabled(false); // Hacer el spinner de Proveedor no editable
+        spinnerItemSubCategoria.setEnabled(false);
+        spinnerItemFormaFarmaceutica.setEnabled(false);
+        idArticulo.setEnabled(false);
+        name.setEnabled(false);
+        description.setEnabled(false);
+        isRestricted.setEnabled(false);
+        price.setEnabled(false);
+
+        // Deshabilitar los botones del diálogo
+        Button btnGuardar = dialogView.findViewById(R.id.btnGuardarArticulo);
+        Button btnLimpiar = dialogView.findViewById(R.id.btnLimpiarArticulo);
+
+        if (btnGuardar != null) {
+            btnGuardar.setVisibility(View.GONE);
+        }
+        if (btnLimpiar != null) {
+            btnLimpiar.setVisibility(View.GONE);
+        }
+
+// Fetch Marcas asynchronously
+        articuloMySQLDAO.getAllMarcasMySQL(new Response.Listener<List<Marca>>() {
+            @Override
+            public void onResponse(List<Marca> marcas) {
+                marcas.add(0, new Marca(-1, getString(R.string.select_brand), ArticuloMySQLActivity.this));
+                ArrayAdapter<Marca> adapterMarca = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, marcas) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getView(position, convertView, parent);
+                        Marca marca = getItem(position);
+                        if (marca.getIdMarca() == -1) {
+                            view.setText(R.string.select_brand);
+                        } else {
+                            view.setText(marca.getNombreMarca()); // Only show name in the Spinner
+                        }
+                        return view;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                        Marca marca = getItem(position);
+                        if (marca.getIdMarca() == -1) {
+                            view.setText(R.string.select_brand);
+                        } else {
+                            view.setText(marca.getNombreMarca() + " (" + marca.getIdMarca() + ")");
+                        }
+                        return view;
+                    }
+                };
+                adapterMarca.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerItemMarca.setAdapter(adapterMarca);
+
+                // Set selected item in the spinner
+                for (int i = 0; i < marcas.size(); i++) {
+                    if (marcas.get(i).getIdMarca() == articulo.getIdMarca()) {
+                        spinnerItemMarca.setSelection(i);
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Fetch ViaAdministracion asynchronously
+        articuloMySQLDAO.getAllViaAdministracionMySQL(new Response.Listener<List<ViaAdministracion>>() {
+            @Override
+            public void onResponse(List<ViaAdministracion> viaAdministracions) {
+                viaAdministracions.add(0, new ViaAdministracion(-1, getString(R.string.select_admin_route), ArticuloMySQLActivity.this));
+                ArrayAdapter<ViaAdministracion> adaptarViaAdministracion = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, viaAdministracions) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getView(position, convertView, parent);
+                        ViaAdministracion viaAdministracion = getItem(position);
+                        if (viaAdministracion.getIdViaAdministracion() == -1) {
+                            view.setText(R.string.select_admin_route);
+                        } else {
+                            view.setText(viaAdministracion.getTipoAdministracion()); // Only show name in the Spinner
+                        }
+                        return view;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                        ViaAdministracion viaAdministracion = getItem(position);
+                        if (viaAdministracion.getIdViaAdministracion() == -1) {
+                            view.setText(R.string.select_admin_route);
+                        } else {
+                            view.setText(viaAdministracion.getTipoAdministracion() + " (" + viaAdministracion.getIdViaAdministracion() + ")");
+                        }
+                        return view;
+                    }
+                };
+                adaptarViaAdministracion.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerItemROA.setAdapter(adaptarViaAdministracion);
+
+                // Set selected item in the spinner
+                for (int i = 0; i < viaAdministracions.size(); i++) {
+                    if (viaAdministracions.get(i).getIdViaAdministracion() == articulo.getIdViaAdministracion()) {
+                        spinnerItemROA.setSelection(i);
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Fetch Sub categorias asynchronously
+        articuloMySQLDAO.getAllSubCategoriaMySQL(new Response.Listener<List<SubCategoria>>() {
+            @Override
+            public void onResponse(List<SubCategoria> subCategorias) {
+                subCategorias.add(0, new SubCategoria(-1, getString(R.string.select_subcategory), ArticuloMySQLActivity.this));
+                ArrayAdapter<SubCategoria> adapterSubCat = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, subCategorias) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getView(position, convertView, parent);
+                        SubCategoria subCategoria = getItem(position);
+                        if (subCategoria.getIdCategoria() == -1) {
+                            view.setText(R.string.select_subcategory);
+                        } else {
+                            view.setText(subCategoria.getNombreSubCategoria()); // Only show name in the Spinner
+                        }
+                        return view;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                        SubCategoria subCategoria = getItem(position);
+                        if (subCategoria.getIdCategoria() == -1) {
+                            view.setText(R.string.select_subcategory);
+                        } else {
+                            view.setText(subCategoria.getNombreSubCategoria() + " (" + subCategoria.getIdCategoria() + ")");
+                        }
+                        return view;
+                    }
+                };
+                adapterSubCat.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerItemSubCategoria.setAdapter(adapterSubCat);
+
+                // Set selected item in the spinner
+                for (int i = 0; i < subCategorias.size(); i++) {
+                    if (subCategorias.get(i).getIdSubCategoria() == articulo.getIdSubCategoria()) {
+                        spinnerItemSubCategoria.setSelection(i);
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Fetch Sub Forma Farmaceutica asynchronously
+        articuloMySQLDAO.getAllFormaFarmaceuticaMySQL(new Response.Listener<List<FormaFarmaceutica>>() {
+            @Override
+            public void onResponse(List<FormaFarmaceutica> formaFarmaceuticas) {
+                formaFarmaceuticas.add(0, new FormaFarmaceutica(-1, getString(R.string.select_pharma_form), ArticuloMySQLActivity.this));
+                ArrayAdapter<FormaFarmaceutica> adapterForma = new ArrayAdapter<>(ArticuloMySQLActivity.this, android.R.layout.simple_spinner_item, formaFarmaceuticas) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getView(position, convertView, parent);
+                        FormaFarmaceutica formaFarmaceutica = getItem(position);
+                        if (formaFarmaceutica.getIdFormaFarmaceutica() == -1) {
+                            view.setText(getString(R.string.select_pharma_form));
+                        } else {
+                            view.setText(formaFarmaceutica.getTipoFormaFarmaceutica()); // Only show name in the Spinner
+                        }
+                        return view;
+                    }
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                        FormaFarmaceutica formaFarmaceutica = getItem(position);
+                        if (formaFarmaceutica.getIdFormaFarmaceutica() == -1) {
+                            view.setText(getString(R.string.select_pharma_form));
+                        } else {
+                            view.setText(formaFarmaceutica.getTipoFormaFarmaceutica() + " (" + formaFarmaceutica.getIdFormaFarmaceutica() + ")");
+                        }
+                        return view;
+                    }
+                };
+                adapterForma.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerItemFormaFarmaceutica.setAdapter(adapterForma);
+
+                // Set selected item in the spinner
+                for (int i = 0; i < formaFarmaceuticas.size(); i++) {
+                    if (formaFarmaceuticas.get(i).getIdFormaFarmaceutica() == articulo.getIdFormaFarmaceutica()) {
+                        spinnerItemFormaFarmaceutica.setSelection(i);
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Populate EditTexts with current DetalleCompra data
+        idArticulo.setText(String.valueOf(articulo.getIdArticulo()));
+        name.setText(articulo.getNombreArticulo());
+        description.setText(articulo.getDescripcionArticulo());
+        isRestricted.setChecked(articulo.getRestringidoArticulo());
+        price.setText(String.valueOf(articulo.getPrecioArticulo()));
+
+        builder.show();
+    }
+    //Buscar
+    private void buscarArticulo(int id) {
+        articuloMySQLDAO.getArticuloMySQLSqlite(id, articulo -> {
+            if(articulo != null) {
+                viewArticuloMySQL(articulo);
+            } else {
+                Toast.makeText(this, R.string.not_found_message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }

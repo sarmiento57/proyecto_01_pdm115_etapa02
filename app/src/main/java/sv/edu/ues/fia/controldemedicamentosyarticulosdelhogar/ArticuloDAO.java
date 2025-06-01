@@ -21,6 +21,7 @@ import java.util.Map;
 public class ArticuloDAO {
     private SQLiteDatabase dbConection;
     private Context context;
+    private ArticuloMySQLDAO articuloMySQLDAO;
 
     public ArticuloDAO(Context context, SQLiteDatabase dbConection) {
         this.context = context;
@@ -31,7 +32,7 @@ public class ArticuloDAO {
     public void insertarArticulo(Articulo articulo, ArticuloMySQLDAO mysqlDAO, CallbackBoolean callback) {
         mysqlDAO.tablasSincronizadas(this, sincronizado -> {
             if (!sincronizado) {
-                Toast.makeText(context, "Las tablas no están sincronizadas, sincronice primero.", Toast.LENGTH_LONG).show();
+                Toast.makeText(context, R.string.tables_not_synced, Toast.LENGTH_LONG).show();
                 callback.onResult(false);
                 return;
             }
@@ -56,10 +57,10 @@ public class ArticuloDAO {
 
                 long insercion = dbConection.insert("ARTICULO", null, item);
                 if (insercion == -1) {
-                    Toast.makeText(context, "Error: registro duplicado o fallo en inserción", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.duplicate_message, Toast.LENGTH_SHORT).show();
                     callback.onResult(false);
                 } else {
-                    Toast.makeText(context, "Artículo insertado correctamente", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.save_message, Toast.LENGTH_SHORT).show();
                     callback.onResult(true);
                 }
             } else {
@@ -67,6 +68,28 @@ public class ArticuloDAO {
             }
         });
     }
+    public void getAllArticulosSQLite(Response.Listener<List<Articulo>> callback) {
+        List<Articulo> articulos = new ArrayList<>();
+        Cursor cursor = dbConection.query("ARTICULO", null, null, null, null, null, null);
+        if (cursor.moveToFirst()) {
+            do {
+                Articulo art = new Articulo();
+                art.setIdArticulo(cursor.getInt(cursor.getColumnIndexOrThrow("IDARTICULO")));
+                art.setIdMarca(cursor.getInt(cursor.getColumnIndexOrThrow("IDMARCA")));
+                art.setIdViaAdministracion(cursor.getInt(cursor.getColumnIndexOrThrow("IDVIAADMINISTRACION")));
+                art.setIdSubCategoria(cursor.getInt(cursor.getColumnIndexOrThrow("IDSUBCATEGORIA")));
+                art.setIdFormaFarmaceutica(cursor.getInt(cursor.getColumnIndexOrThrow("IDFORMAFARMACEUTICA")));
+                art.setNombreArticulo(cursor.getString(cursor.getColumnIndexOrThrow("NOMBREARTICULO")));
+                art.setDescripcionArticulo(cursor.getString(cursor.getColumnIndexOrThrow("DESCRIPCIONARTICULO")));
+                art.setRestringidoArticulo(cursor.getInt(cursor.getColumnIndexOrThrow("RESTRINGIDOARTICULO")) == 1);
+                art.setPrecioArticulo(cursor.getDouble(cursor.getColumnIndexOrThrow("PRECIOARTICULO")));
+                articulos.add(art);
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        callback.onResponse(articulos);
+    }
+
     public Articulo getArticulo(int id){
         String [] idArticulo = {String.valueOf(id)};
         Cursor cursor = getDbConection().query("ARTICULO",null, "IDARTICULO = ?",idArticulo,null,null,null );

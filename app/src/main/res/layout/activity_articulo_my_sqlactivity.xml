@@ -22,18 +22,23 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:text="Articulos MYSQL"
+            android:text="@string/articles_mysql"
             android:textAlignment="center"
             android:textStyle="bold"
             tools:ignore="RtlCompat" />
     </LinearLayout>
 
-    <EditText
-        android:id="@+id/editTextSearchItemMySQL"
+    <Spinner
+        android:id="@+id/spinnerOrdenPrecio"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Search" />
+        android:layout_height="40dp"/>
 
+    <EditText
+        android:id="@+id/edtSearchItemSqliteMysql"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_margin="5dp"
+        android:hint="@string/search"/>
 
     <ListView
         android:id="@+id/itemListvMySQL"
@@ -74,6 +79,6 @@
             android:layout_height="wrap_content"
             android:layout_margin="5dp"
             android:layout_weight="5"
-            android:text="Sincronizar db" />
+            android:text="@string/sync_sqlite" />
     </LinearLayout>
 </LinearLayout>

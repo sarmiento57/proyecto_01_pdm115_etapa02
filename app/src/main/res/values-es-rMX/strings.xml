@@ -254,5 +254,27 @@
     <string name="error_select_categoria">Debe seleccionar una categoría válida</string>
     <string name="error_guardar_subcategoria">Error saving the subcategory</string>
 
+    <string name="login_mysql">Login MySQL</string>
+    <string name="sync_mysql">Sincronizar MySQL</string>
+    <string name="update_price">Actualizar Precio</string>
+    <string name="article_mysql">Articulo MySQL</string>
+    <string name="articles_mysql">Articulos MySQL</string>
+    <string name="sync_sqlite">Sincronizar SQLite</string>
+
+    <string name="sync_completed">Sincronización completada</string>
+    <string name="invalid_id">ID debe ser un número válido</string>
+    <string name="mysql_count_error">Error de conexión al contar doctores en MySQL</string>
+    <string name="mysql_sync_error">Error de conexión al sincronizar con MySQL</string>
+    <string name="tables_not_synced">Las tablas no están sincronizadas, sincronice primero.</string>
+    <string name="doctor_insert_error">Error al insertar el doctor</string>
+    <string name="mysql_delete_error">Error al eliminar en MySQL</string>
+    <string name="mysql_delete_connection_error">Error de conexión al eliminar doctor en MySQL. No se eliminó localmente.</string>
+
+    <string name="option_all">Todos</string>
+    <string name="option_cheaper">Más barato</string>
+    <string name="option_expensive">Más caro</string>
+
+    <string name="prices_updated">Precios actualizados correctamente</string>
+    <string name="data_inserted">Datos insertados correctamente</string>
 
 </resources>
