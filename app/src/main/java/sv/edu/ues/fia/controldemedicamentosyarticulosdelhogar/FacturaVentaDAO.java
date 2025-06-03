@@ -7,16 +7,25 @@ import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.android.volley.Response;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class FacturaVentaDAO {
     private SQLiteDatabase conexionDB;
     private Context context;
+    private WebServiceHelper ws;
 
     public FacturaVentaDAO(SQLiteDatabase conexionDB, Context context) {
         this.context = context;
         this.conexionDB = conexionDB;
+        this.ws = new WebServiceHelper(context);
     }
     // obtener todas las sucursales de farmacias
     public List<SucursalFarmacia> getAllFarmacias() {
@@ -78,13 +87,13 @@ public class FacturaVentaDAO {
                 new String[]{String.valueOf(idVenta)}, null, null, null);
 
         if (cursor != null && cursor.moveToFirst()) {
-            factura = new FacturaVenta( // Added context
+            factura = new FacturaVenta(
                     cursor.getInt(cursor.getColumnIndexOrThrow("IDVENTA")),
                     cursor.getInt(cursor.getColumnIndexOrThrow("IDCLIENTE")),
                     cursor.getInt(cursor.getColumnIndexOrThrow("IDFARMACIA")),
                     cursor.getString(cursor.getColumnIndexOrThrow("FECHAVENTA")),
                     cursor.getDouble(cursor.getColumnIndexOrThrow("TOTALVENTA")),
-                    context // Added context
+                    context
             );
         }
         if (cursor != null) {
@@ -131,7 +140,7 @@ public class FacturaVentaDAO {
             Toast.makeText(context, R.string.update_message, Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
-             Log.w("FacturaVentaDAO", "No rows updated for sale invoice: ID " + factura.getIdVenta());
+            Log.w("FacturaVentaDAO", "No rows updated for sale invoice: ID " + factura.getIdVenta());
         }
     }
 
@@ -143,12 +152,82 @@ public class FacturaVentaDAO {
             Toast.makeText(context, R.string.delete_message, Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
-             Log.w("FacturaVentaDAO", "No rows deleted for sale invoice: ID " + idVenta);
+            Log.w("FacturaVentaDAO", "No rows deleted for sale invoice: ID " + idVenta);
         }
     }
 
-    // Get global next IDVENTA
-     public int obtenerIdFacturaVenta() {
+    // Listar todas las facturas de venta de SQLite
+    public void getAllFacturasVentaSQLite(Response.Listener<List<FacturaVenta>> callback) {
+        List<FacturaVenta> lista = new ArrayList<>();
+        Cursor cursor = conexionDB.query("FACTURAVENTA", null, null, null, null, null, null);
+        if (cursor.moveToFirst()) {
+            do {
+                FacturaVenta fv = new FacturaVenta(
+                        cursor.getInt(cursor.getColumnIndexOrThrow("IDVENTA")),
+                        cursor.getInt(cursor.getColumnIndexOrThrow("IDCLIENTE")),
+                        cursor.getInt(cursor.getColumnIndexOrThrow("IDFARMACIA")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("FECHAVENTA")),
+                        cursor.getDouble(cursor.getColumnIndexOrThrow("TOTALVENTA")),
+                        context
+                );
+                lista.add(fv);
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        callback.onResponse(lista);
+    }
+
+    // Sincronizar factura de venta con MySQL
+    public void sincronizarFacturaVentaMysql(FacturaVenta facturaVenta) {
+        Map<String, String> params = new HashMap<>();
+        params.put("idventa", String.valueOf(facturaVenta.getIdVenta()));
+        params.put("idcliente", String.valueOf(facturaVenta.getIdCliente()));
+        params.put("idfarmacia", String.valueOf(facturaVenta.getIdFarmacia()));
+        params.put("fechaventa", facturaVenta.getFechaVenta());
+        params.put("totalventa", String.valueOf(facturaVenta.getTotalVenta()));
+
+        ws.post("facturaventa/sincronizar_factura_venta.php", params,
+                response -> {
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        boolean success = json.optBoolean("success", false);
+                        String message = json.optString("message", "Respuesta desconocida.");
+                        if (success) {
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(context, "Error MySQL: " + message, Toast.LENGTH_LONG).show();
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(context, "Respuesta JSON inválida", Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.mysql_sync_error, Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    // Verificar si la factura de venta existe en MySQL
+    private void isDuplicateMysql(int idVenta, Response.Listener<Boolean> callback) {
+        Map<String, String> params = new HashMap<>();
+        params.put("idventa", String.valueOf(idVenta));
+        ws.post("facturaventa/verificar_factura_venta.php", params,
+                response -> {
+                    try {
+                        JSONObject obj = new JSONObject(response);
+                        callback.onResponse(obj.optBoolean("existe", false));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        callback.onResponse(false);
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.connection_error, Toast.LENGTH_SHORT).show();
+                    callback.onResponse(false);
+                });
+    }
+
+    public int obtenerIdFacturaVenta() {
         Cursor cursor = conexionDB.rawQuery("SELECT MAX(IDVENTA) FROM FACTURAVENTA", null);
         int id = 1;
         if (cursor != null && cursor.moveToFirst()) {

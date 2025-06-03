@@ -6,16 +6,25 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.widget.Toast;
 
+import com.android.volley.Response;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class RecetaDAO {
     private SQLiteDatabase db;
     private Context context;
+    private WebServiceHelper ws;
 
     public RecetaDAO(SQLiteDatabase db, Context context) {
         this.db = db;
         this.context = context;
+        this.ws = new WebServiceHelper(context);
     }
 
     public void addReceta(Receta receta) {
@@ -184,5 +193,48 @@ public class RecetaDAO {
         boolean existe = cursor.moveToFirst();
         cursor.close();
         return existe;
+    }
+
+    // Consultar recetas por cliente desde MySQL
+    public void getRecetasByClienteMySQL(int idCliente, Response.Listener<List<Receta>> callback) {
+        Map<String, String> params = new HashMap<>();
+        params.put("idcliente", String.valueOf(idCliente));
+
+        ws.post("receta/consultar_recetas_por_cliente.php", params,
+                response -> {
+                    List<Receta> recetas = new ArrayList<>();
+                    try {
+                        JSONObject jsonResponse = new JSONObject(response);
+                        if (jsonResponse.optBoolean("success", false)) {
+                            JSONArray jsonRecetas = jsonResponse.optJSONArray("recetas");
+                            if (jsonRecetas != null) {
+                                for (int i = 0; i < jsonRecetas.length(); i++) {
+                                    JSONObject recetaJson = jsonRecetas.getJSONObject(i);
+                                    Receta receta = new Receta(
+                                            recetaJson.getInt("IDDOCTOR"),
+                                            recetaJson.getInt("IDCLIENTE"),
+                                            recetaJson.getInt("IDRECETA"),
+                                            recetaJson.getString("FECHAEXPEDIDA"),
+                                            recetaJson.getString("DESCRIPCION"),
+                                            context
+                                    );
+                                    recetas.add(receta);
+                                }
+                            }
+                            callback.onResponse(recetas);
+                        } else {
+                            Toast.makeText(context, R.string.mysql_query_error + jsonResponse.optString("error"), Toast.LENGTH_LONG).show();
+                            callback.onResponse(new ArrayList<>()); // Return empty list on error
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(context, "Respuesta JSON inválida", Toast.LENGTH_SHORT).show();
+                        callback.onResponse(new ArrayList<>()); // Return empty list on error
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.connection_error, Toast.LENGTH_LONG).show();
+                    callback.onResponse(new ArrayList<>()); // Return empty list on connection error
+                });
     }
 }

@@ -277,4 +277,13 @@
     <string name="prices_updated">Precios actualizados correctamente</string>
     <string name="data_inserted">Datos insertados correctamente</string>
 
+    <string name="no_invoices_to_sync">No hay facturas para sincronizar.</string>
+    <string name="category_insert_error">Error al insertar categoría</string>
+    <string name="existence_insert_error">Error al insertar existencia</string>
+    <string name="mysql_insert_error">Error al insertar en MySQL</string>
+    <string name="mysql_insert_connection_error">Error de conexión al insertar en MySQL</string>
+    <string name="mysql_update_error">Error al actualizar en MySQL</string>
+    <string name="mysql_update_connection_error">Error de conexión al actualizar en MySQL</string>
+    <string name="mysql_query_error">Error al consultar en MySQL</string>
+
 </resources>

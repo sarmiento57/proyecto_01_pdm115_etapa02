@@ -325,4 +325,13 @@
     <string name="prices_updated">Prices updated successfully</string>
     <string name="data_inserted">Data inserted successfully</string>
 
+    <string name="no_invoices_to_sync">No invoices to synchronize.</string>
+    <string name="category_insert_error">Error inserting category</string>
+    <string name="existence_insert_error">Error inserting existence</string>
+    <string name="mysql_insert_error">Error inserting in MySQL</string>
+    <string name="mysql_insert_connection_error">Connection error while inserting in MySQL</string>
+    <string name="mysql_update_error">Error updating in MySQL</string>
+    <string name="mysql_update_connection_error">Connection error while updating in MySQL</string>
+    <string name="mysql_query_error">Error querying in MySQL</string>
+
 </resources>

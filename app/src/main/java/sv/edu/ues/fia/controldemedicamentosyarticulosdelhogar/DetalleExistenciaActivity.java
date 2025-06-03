@@ -115,7 +115,7 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
                 -1,    // idArticulo
                 getString(R.string.select_articulo), // nombreArticulo
                 this
-                );
+        );
         sucursales.add(0, seleccionSucursalFarmacia);
         articulos.add(0, seleccionArticulo);
 
@@ -147,14 +147,14 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
             datePickerDialog.show();
         });
 
-            List<View> vistas = Arrays.asList(editTextExpirationDate);
-            List<String> listaRegex = Arrays.asList(
-                    "\\d{4}-\\d{2}-\\d{2}"
-            );
+        List<View> vistas = Arrays.asList(editTextExpirationDate);
+        List<String> listaRegex = Arrays.asList(
+                "\\d{4}-\\d{2}-\\d{2}"
+        );
 
-            List<Integer> mensajesDeError = Arrays.asList(R.string.invalid_date);
+        List<Integer> mensajesDeError = Arrays.asList(R.string.invalid_date);
 
-            ValidadorDeCampos validadorDeCampos = new ValidadorDeCampos(this, vistas, listaRegex, mensajesDeError);
+        ValidadorDeCampos validadorDeCampos = new ValidadorDeCampos(this, vistas, listaRegex, mensajesDeError);
 
         final AlertDialog dialog = builder.create();
 
@@ -183,8 +183,8 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
 
 
     public void saveExistence(Spinner spinnerIdArticulo, Spinner spinnerIdFarmacia,
-            EditText editTextExistenceAmount, EditText editTextExpirationDate,
-            EditText editTextIdExistenceDetail,AlertDialog  dialog){
+                              EditText editTextExistenceAmount, EditText editTextExpirationDate,
+                              EditText editTextIdExistenceDetail,AlertDialog  dialog){
 
 
         if(spinnerIdArticulo.getSelectedItemPosition() == 0 ||
@@ -215,13 +215,14 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
                     this
             );
 
-            try {
-                detalleExistenciaDAO.addExistencia(detalleExistencia);
-                fillList();
-                dialog.dismiss();
-            } catch (Exception e) {
-                Log.e("DB_ERROR", "Error al insertar existencia", e);
-            }
+            detalleExistenciaDAO.addExistencia(detalleExistencia, success -> {
+                if (success) {
+                    fillList();
+                    dialog.dismiss();
+                } else {
+                    Log.e("DB_ERROR", "Error al insertar existencia");
+                }
+            });
 
 
         }
@@ -261,10 +262,10 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
             dialogView.findViewById(R.id.buttonView).setVisibility(View.GONE);
 
         if(!vac.validarAcceso(3))
-                dialogView.findViewById(R.id.buttonEdit).setVisibility(View.GONE);
+            dialogView.findViewById(R.id.buttonEdit).setVisibility(View.GONE);
 
         if(!vac.validarAcceso(4))
-                    dialogView.findViewById(R.id.buttonDelete).setVisibility(View.GONE);
+            dialogView.findViewById(R.id.buttonDelete).setVisibility(View.GONE);
 
         dialogView.findViewById(R.id.buttonView).setOnClickListener(v -> viewExistence(detalleExistencia, dialog));
         dialogView.findViewById(R.id.buttonEdit).setOnClickListener(v -> editExistence(detalleExistencia, dialog));
@@ -408,14 +409,14 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
 
 
     public void updateExistence(Spinner spinnerIdArticulo, Spinner spinnerIdFarmacia,
-                              EditText editTextExistenceAmount, EditText editTextExpirationDate,
-                              EditText editTextIdExistenceDetail,AlertDialog  dialog){
+                                EditText editTextExistenceAmount, EditText editTextExpirationDate,
+                                EditText editTextIdExistenceDetail,AlertDialog  dialog){
 
 
         if(
                 editTextExistenceAmount.getText().toString().trim().isEmpty() ||
-                editTextExpirationDate.getText().toString().trim().isEmpty() ||
-                editTextIdExistenceDetail.getText().toString().trim().isEmpty()
+                        editTextExpirationDate.getText().toString().trim().isEmpty() ||
+                        editTextIdExistenceDetail.getText().toString().trim().isEmpty()
         )
         {
 
@@ -439,13 +440,14 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
                     this
             );
 
-            try {
-                detalleExistenciaDAO.updateExistencia(detalleExistencia);
-                fillList();
-                dialog.dismiss();
-            } catch (Exception e) {
-                Log.e("DB_ERROR", "Error al modificar la existencia", e);
-            }
+            detalleExistenciaDAO.updateExistencia(detalleExistencia, success -> {
+                if (success) {
+                    fillList();
+                    dialog.dismiss();
+                } else {
+                    Log.e("DB_ERROR", "Error al modificar la existencia");
+                }
+            });
 
 
         }
@@ -457,8 +459,9 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
         builder.setMessage(getString(R.string.confirm_delete_message) + ": " + id);
 
         builder.setPositiveButton(R.string.yes, (dialog, which) -> {
-            detalleExistenciaDAO.deleteExistencia(id);
-            fillList();
+            detalleExistenciaDAO.deleteExistencia(id, () -> {
+                fillList();
+            });
         });
 
         builder.setNegativeButton(R.string.no, (dialog, which) -> dialog.dismiss());
@@ -558,12 +561,12 @@ public class DetalleExistenciaActivity extends AppCompatActivity {
 
     }
 
-private void fillList(List<DetalleExistencia>  detalles){
+    private void fillList(List<DetalleExistencia>  detalles){
         listViewDetalleExistencia.setVisibility( View.VISIBLE);
         listaDetalleExistencia = detalles;
         adaptadorDetalleExistencia = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, listaDetalleExistencia);
         listViewDetalleExistencia.setAdapter(adaptadorDetalleExistencia);
-}
+    }
 
 
 }

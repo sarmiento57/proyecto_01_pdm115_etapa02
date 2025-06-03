@@ -13,7 +13,7 @@ import java.util.Map;
 
 public class WebServiceHelper {
     public final Context context;
-    private final String BASE_URL = "http://192.168.1.51/api_farmacia/";
+    private final String BASE_URL = "http://192.168.1.29/api_farmacia/";
 
 
     public WebServiceHelper(Context context) {

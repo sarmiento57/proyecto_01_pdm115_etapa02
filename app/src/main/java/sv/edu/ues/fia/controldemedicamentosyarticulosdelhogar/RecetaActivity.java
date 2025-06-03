@@ -44,6 +44,10 @@ public class RecetaActivity extends AppCompatActivity {
             }
         });
 
+        Button btnConsultarRecetasPorCliente = findViewById(R.id.btnConsultarRecetasPorCliente);
+        btnConsultarRecetasPorCliente.setVisibility(vac.validarAcceso(2) ? View.VISIBLE : View.INVISIBLE);
+        btnConsultarRecetasPorCliente.setOnClickListener(v -> showSearchByClientDialog());
+
         listverReceta = findViewById(R.id.lvReceta);
         listverReceta.setVisibility(vac.validarAcceso(3) || vac.validarAcceso(4) ? View.VISIBLE : View.INVISIBLE);
         llenarLista();
@@ -137,7 +141,7 @@ public class RecetaActivity extends AppCompatActivity {
 
                 } else {
                     view.setText(doctor.getNombreDoctor() + " (ID: " + doctor.getIdDoctor() + ")");
-                    
+
                 }
                 return view;
             }
@@ -170,7 +174,7 @@ public class RecetaActivity extends AppCompatActivity {
 
                 } else {
                     view.setText(cliente.getNombreCliente() + " (ID: " + cliente.getIdCliente() + ")");
-                    
+
                 }
                 return view;
             }
@@ -274,7 +278,7 @@ public class RecetaActivity extends AppCompatActivity {
 
                 } else {
                     view.setText(doctor.getNombreDoctor() + " (ID: " + doctor.getIdDoctor() + ")");
-                    
+
                 }
                 return view;
             }
@@ -307,7 +311,7 @@ public class RecetaActivity extends AppCompatActivity {
 
                 } else {
                     view.setText(cliente.getNombreCliente() + " (ID: " + cliente.getIdCliente() + ")");
-                    
+
                 }
                 return view;
             }
@@ -389,7 +393,7 @@ public class RecetaActivity extends AppCompatActivity {
 
                 } else {
                     view.setText(doctor.getNombreDoctor() + " (ID: " + doctor.getIdDoctor() + ")");
-                    
+
                 }
                 return view;
             }
@@ -422,7 +426,7 @@ public class RecetaActivity extends AppCompatActivity {
 
                 } else {
                     view.setText(cliente.getNombreCliente() + " (ID: " + cliente.getIdCliente() + ")");
-                    
+
                 }
                 return view;
             }
@@ -498,4 +502,43 @@ public class RecetaActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    private void showSearchByClientDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.search);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_buscar_receta_cliente, null);
+        builder.setView(dialogView);
+
+        EditText etClientId = dialogView.findViewById(R.id.editTextSearchClientId);
+        Button btnSearch = dialogView.findViewById(R.id.btnSearchClientRecetas);
+
+        final AlertDialog dialog = builder.create();
+
+        btnSearch.setOnClickListener(v -> {
+            String clientIdStr = etClientId.getText().toString().trim();
+            if (clientIdStr.isEmpty()) {
+                Toast.makeText(this, R.string.invalid_search, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            try {
+                int idCliente = Integer.parseInt(clientIdStr);
+                recetaDAO.getRecetasByClienteMySQL(idCliente, recetas -> {
+                    if (recetas != null && !recetas.isEmpty()) {
+                        listaReceta.clear();
+                        listaReceta.addAll(recetas);
+                        adaptadorReceta.notifyDataSetChanged();
+                        Toast.makeText(this, "Recetas encontradas: " + recetas.size(), Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, R.string.not_found_message, Toast.LENGTH_SHORT).show();
+                        listaReceta.clear(); // Clear list if no results
+                        adaptadorReceta.notifyDataSetChanged();
+                    }
+                    dialog.dismiss();
+                });
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, R.string.invalid_id, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        dialog.show();
+    }
 }

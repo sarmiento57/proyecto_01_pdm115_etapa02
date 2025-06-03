@@ -86,6 +86,21 @@ public class FacturaVentaActivity extends AppCompatActivity {
             FacturaVenta facturaSeleccionada = (FacturaVenta) parent.getItemAtPosition(position);
             showOptionsDialog(facturaSeleccionada);
         });
+
+        // Sincronizar con MySQL
+        Button btnSincronizarFacturaVentaMySQL = findViewById(R.id.btnSincronizarFacturaVentaMySQL);
+        btnSincronizarFacturaVentaMySQL.setOnClickListener(v -> {
+            facturaVentaDAO.getAllFacturasVentaSQLite(facturas -> {
+                if (facturas.isEmpty()) {
+                    Toast.makeText(this, R.string.no_invoices_to_sync, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                for (FacturaVenta factura : facturas) {
+                    facturaVentaDAO.sincronizarFacturaVentaMysql(factura);
+                }
+                Toast.makeText(this, R.string.sync_completed, Toast.LENGTH_SHORT).show();
+            });
+        });
     }
 
 
@@ -295,7 +310,7 @@ public class FacturaVentaActivity extends AppCompatActivity {
         });
 
         dialogView.findViewById(R.id.buttonEdit).setOnClickListener(v -> {
-            if (vac.validarAcceso(3)) editFacturaVenta(factura); // Renamed
+            if (vac.validarAcceso(3)) editFacturaVenta(factura);
             else Toast.makeText(this, R.string.action_block, Toast.LENGTH_SHORT).show();
             dialog.dismiss();
         });
@@ -383,7 +398,7 @@ public class FacturaVentaActivity extends AppCompatActivity {
 
     private void editFacturaVenta(final FacturaVenta facturaOriginal) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.edit); // Consistent title
+        builder.setTitle(R.string.edit);
 
         LayoutInflater inflater = getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialogo_factura_venta, null);

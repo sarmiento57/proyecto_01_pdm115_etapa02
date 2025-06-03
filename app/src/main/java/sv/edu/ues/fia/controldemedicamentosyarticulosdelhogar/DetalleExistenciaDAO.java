@@ -6,66 +6,126 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.widget.Toast;
 
+import com.android.volley.Response;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DetalleExistenciaDAO {
 
     private SQLiteDatabase conexionDB;
     private Context context;
-
+    private WebServiceHelper ws;
 
 
     public DetalleExistenciaDAO(SQLiteDatabase conexionDB, Context context) {
         this.conexionDB = conexionDB;
         this.context = context;
+        this.ws = new WebServiceHelper(context);
     }
 
 
-    public void addExistencia(DetalleExistencia detalleExistencia)
-    {
+    public void addExistencia(DetalleExistencia detalleExistencia, CallbackBoolean callback) {
         if (isDuplicate(detalleExistencia.getIdDetalleExistencia())) {
             Toast.makeText(context, R.string.duplicate_message, Toast.LENGTH_SHORT).show();
+            callback.onResult(false);
             return;
-        }else {
+        } else {
             if (isUsed(detalleExistencia)) {
-                Toast.makeText(context, R.string.duplicate_message , Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.duplicate_message, Toast.LENGTH_SHORT).show();
+                callback.onResult(false);
                 return;
-            }
-            else {
-
-
+            } else {
                 ContentValues values = new ContentValues();
                 values.put("IDARTICULO", detalleExistencia.getIdArticulo());
                 values.put("IDDETALLEEXISTENCIA", detalleExistencia.getIdDetalleExistencia());
                 values.put("IDFARMACIA", detalleExistencia.getIdFarmacia());
                 values.put("CANTIDADEXISTENCIA", detalleExistencia.getCantidadExistencia());
                 values.put("FECHADEVENCIMIENTO", detalleExistencia.getFechaDeVencimiento());
-                conexionDB.insert("DETALLEEXISTENCIA", null, values);
-                Toast.makeText(context, R.string.save_message, Toast.LENGTH_SHORT).show();
 
+                long insercion = conexionDB.insert("DETALLEEXISTENCIA", null, values);
+                if (insercion == -1) {
+                    Toast.makeText(context, R.string.existence_insert_error, Toast.LENGTH_SHORT).show();
+                    callback.onResult(false);
+                } else {
+                    // Insert into MySQL
+                    Map<String, String> params = new HashMap<>();
+                    params.put("idarticulo", String.valueOf(detalleExistencia.getIdArticulo()));
+                    params.put("iddetalleexistencia", String.valueOf(detalleExistencia.getIdDetalleExistencia()));
+                    params.put("idfarmacia", String.valueOf(detalleExistencia.getIdFarmacia()));
+                    params.put("cantidadexistencia", String.valueOf(detalleExistencia.getCantidadExistencia()));
+                    params.put("fechadevencimiento", detalleExistencia.getFechaDeVencimiento());
 
-
-
+                    ws.post("detalleexistencia/agregar_existencia.php", params,
+                            response -> {
+                                try {
+                                    JSONObject json = new JSONObject(response);
+                                    boolean success = json.optBoolean("success", false);
+                                    if (success) {
+                                        Toast.makeText(context, R.string.save_message, Toast.LENGTH_SHORT).show();
+                                        callback.onResult(true);
+                                    } else {
+                                        Toast.makeText(context, R.string.mysql_insert_error + json.optString("error"), Toast.LENGTH_LONG).show();
+                                        callback.onResult(false);
+                                    }
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                    Toast.makeText(context, "Respuesta JSON inválida", Toast.LENGTH_SHORT).show();
+                                    callback.onResult(false);
+                                }
+                            },
+                            error -> {
+                                Toast.makeText(context, R.string.mysql_insert_connection_error, Toast.LENGTH_LONG).show();
+                                callback.onResult(false);
+                            });
+                }
             }
         }
-
     }
 
 
-    public void updateExistencia(DetalleExistencia detalleExistencia)
-    {
+    public void updateExistencia(DetalleExistencia detalleExistencia, CallbackBoolean callback) {
+        Map<String, String> params = new HashMap<>();
+        params.put("iddetalleexistencia", String.valueOf(detalleExistencia.getIdDetalleExistencia()));
+        params.put("cantidadexistencia", String.valueOf(detalleExistencia.getCantidadExistencia()));
+        params.put("fechadevencimiento", detalleExistencia.getFechaDeVencimiento());
 
-        ContentValues values = new ContentValues();
-        values.put("CANTIDADEXISTENCIA", detalleExistencia.getCantidadExistencia());
-        values.put("FECHADEVENCIMIENTO", detalleExistencia.getFechaDeVencimiento());
-        int rowsAffected = conexionDB.update("DETALLEEXISTENCIA", values, "IDDETALLEEXISTENCIA = ?",
-                new String[]{String.valueOf(detalleExistencia.getIdDetalleExistencia())});
-        if (rowsAffected == 0) {
-            Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(context, R.string.update_message, Toast.LENGTH_SHORT).show();
-        }
+        ws.post("detalleexistencia/actualizar_existencia.php", params,
+                response -> {
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        boolean success = json.optBoolean("success", false);
+                        if (success) {
+                            ContentValues values = new ContentValues();
+                            values.put("CANTIDADEXISTENCIA", detalleExistencia.getCantidadExistencia());
+                            values.put("FECHADEVENCIMIENTO", detalleExistencia.getFechaDeVencimiento());
+                            int rowsAffected = conexionDB.update("DETALLEEXISTENCIA", values, "IDDETALLEEXISTENCIA = ?",
+                                    new String[]{String.valueOf(detalleExistencia.getIdDetalleExistencia())});
+                            if (rowsAffected == 0) {
+                                Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
+                                callback.onResult(false);
+                            } else {
+                                Toast.makeText(context, R.string.update_message, Toast.LENGTH_SHORT).show();
+                                callback.onResult(true);
+                            }
+                        } else {
+                            Toast.makeText(context, R.string.mysql_update_error + json.optString("error"), Toast.LENGTH_LONG).show();
+                            callback.onResult(false);
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(context, "Respuesta JSON inválida", Toast.LENGTH_SHORT).show();
+                        callback.onResult(false);
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.mysql_update_connection_error, Toast.LENGTH_LONG).show();
+                    callback.onResult(false);
+                });
     }
 
 
@@ -131,9 +191,9 @@ public class DetalleExistenciaDAO {
             cursor.close();
             return articulo;
         }
-            cursor.close();
-            Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
-            return null;
+        cursor.close();
+        Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
+        return null;
 
     }
 
@@ -199,17 +259,116 @@ public class DetalleExistenciaDAO {
     }
 
 
-    public void deleteExistencia(int id)
-    {
+    public void deleteExistencia(int id, Runnable onComplete) {
+        Map<String, String> params = new HashMap<>();
+        params.put("iddetalleexistencia", String.valueOf(id));
 
-        int rowsAffected = conexionDB.delete("DETALLEEXISTENCIA", "IDDETALLEEXISTENCIA = ?", new String[]{String.valueOf(id)});
-        if (rowsAffected == 0) {
-            Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(context, R.string.delete_message, Toast.LENGTH_SHORT).show();
-        }
-
+        ws.post("detalleexistencia/eliminar_existencia.php", params,
+                response -> {
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        boolean success = json.optBoolean("success", false);
+                        if (success) {
+                            int rowsAffected = conexionDB.delete("DETALLEEXISTENCIA", "IDDETALLEEXISTENCIA = ?", new String[]{String.valueOf(id)});
+                            if (rowsAffected == 0) {
+                                Toast.makeText(context, R.string.not_found_message, Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(context, R.string.delete_message, Toast.LENGTH_SHORT).show();
+                            }
+                            if (onComplete != null) onComplete.run();
+                        } else {
+                            Toast.makeText(context, R.string.mysql_delete_error + json.optString("error"), Toast.LENGTH_LONG).show();
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(context, "Respuesta JSON inválida", Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.mysql_delete_connection_error, Toast.LENGTH_LONG).show();
+                }
+        );
     }
 
+    // contar existencias de sqlite
+    private int contarExistenciasSQLite() {
+        Cursor cursor = conexionDB.rawQuery("SELECT COUNT(*) FROM DETALLEEXISTENCIA", null);
+        int count = 0;
+        if (cursor.moveToFirst()) {
+            count = cursor.getInt(0);
+        }
+        cursor.close();
+        return count;
+    }
 
+    // contar las existencias de mysql
+    private void contarExistenciasMySQL(Response.Listener<Integer> callback) {
+        ws.post("detalleexistencia/contar_existencias.php", new HashMap<>(),
+                response -> {
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        int count = json.getInt("count");
+                        callback.onResponse(count);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        callback.onResponse(-1);
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.mysql_count_error, Toast.LENGTH_SHORT).show();
+                    callback.onResponse(-1);
+                });
+    }
+
+    public void tablasSincronizadas(CallbackBoolean callback) {
+        int countSQLite = contarExistenciasSQLite();
+        contarExistenciasMySQL(countMySQL -> {
+            if (countMySQL == -1) {
+                // Error al obtener conteo MySQL
+                callback.onResult(false);
+            } else {
+                callback.onResult(countSQLite == countMySQL);
+            }
+        });
+    }
+
+    // sincronizar existencia
+    public void sincronizarExistenciaMysql(DetalleExistencia detalleExistencia) {
+        isDuplicateMysql(detalleExistencia.getIdDetalleExistencia(), existsId -> {
+            if (!existsId) {
+                Map<String, String> params = new HashMap<>();
+                params.put("idarticulo", String.valueOf(detalleExistencia.getIdArticulo()));
+                params.put("iddetalleexistencia", String.valueOf(detalleExistencia.getIdDetalleExistencia()));
+                params.put("idfarmacia", String.valueOf(detalleExistencia.getIdFarmacia()));
+                params.put("cantidadexistencia", String.valueOf(detalleExistencia.getCantidadExistencia()));
+                params.put("fechadevencimiento", detalleExistencia.getFechaDeVencimiento());
+                ws.post("detalleexistencia/sincronizar_sqlite_mysql_existencia.php", params,
+                        response -> {
+                        },
+                        error -> {
+                            Toast.makeText(context, R.string.mysql_sync_error, Toast.LENGTH_SHORT).show();
+                        });
+            }
+        });
+    }
+
+    // Verificar si la existencia existe en MySQL
+    private void isDuplicateMysql(int idDetalleExistencia, Response.Listener<Boolean> callback) {
+        Map<String, String> params = new HashMap<>();
+        params.put("iddetalleexistencia", String.valueOf(idDetalleExistencia));
+        ws.post("detalleexistencia/verificar_existencia.php", params,
+                response -> {
+                    try {
+                        JSONObject obj = new JSONObject(response);
+                        callback.onResponse(obj.optBoolean("existe", false));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        callback.onResponse(false);
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.connection_error, Toast.LENGTH_SHORT).show();
+                    callback.onResponse(false);
+                });
+    }
 }

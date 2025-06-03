@@ -99,11 +99,12 @@ public class CategoriaActivity extends AppCompatActivity implements AdapterView.
                 int id = Integer.parseInt(String.valueOf(idNewCategoria.getText()));
                 String name = String.valueOf(nameNewCategoria.getText());
                 Categoria cat = new Categoria(id, name);
-                boolean exito = categoriaDAO.insertarCategoria(cat);
-                if (exito) {
-                    dialog.dismiss();
-                }
-                actualizarListView();
+                categoriaDAO.insertarCategoria(cat, success -> {
+                    if (success) {
+                        dialog.dismiss();
+                    }
+                    actualizarListView();
+                });
             }
         });
         dialog.show();
@@ -251,16 +252,13 @@ public class CategoriaActivity extends AppCompatActivity implements AdapterView.
         btnCancelar.setText(getString(R.string.no));
 
         btnConfirmar.setOnClickListener(v -> {
-            int filasAfectadas = categoriaDAO.deleteCategoria(categoria);
-            if (filasAfectadas > 0) {
+            categoriaDAO.deleteCategoria(categoria.getIdCategoria(), () -> {
                 actualizarListView();
                 Toast.makeText(this, getString(R.string.delete_message) + ": " + getString(R.string.category) +
                         " ID: " + categoria.getIdCategoria(), Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
                 dialogoPadre.dismiss();
-            } else {
-
-            }
+            });
         });
 
         btnCancelar.setOnClickListener(v -> dialog.dismiss());
