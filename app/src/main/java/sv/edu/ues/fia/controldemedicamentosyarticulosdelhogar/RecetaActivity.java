@@ -213,11 +213,13 @@ public class RecetaActivity extends AppCompatActivity {
                 String descripcion = etDescripcion.getText().toString().trim();
 
                 Receta receta = new Receta(idDoctor, idCliente, idReceta, fecha, descripcion, this);
-                recetaDAO.addReceta(receta);
-                llenarLista();
-                dialog.dismiss();
+                recetaDAO.addReceta(receta, success -> {
+                    if (success) {
+                        llenarLista();
+                        dialog.dismiss();
+                    }
+                });
             }
-
         });
 
         btnLimpiar.setOnClickListener(v -> {
@@ -494,8 +496,10 @@ public class RecetaActivity extends AppCompatActivity {
         builder.setTitle(R.string.confirm_delete);
         builder.setMessage(getString(R.string.confirm_delete_message) + ": " + idDoctor + ", " + idCliente + ", " + idReceta);
         builder.setPositiveButton(R.string.yes, (dialog, which) -> {
-            recetaDAO.deleteReceta(idReceta);
-            llenarLista(); // Refresh the ListView
+            recetaDAO.deleteReceta(idReceta, () -> {
+                llenarLista(); 
+                dialog.dismiss();
+            });
         });
         builder.setNegativeButton(R.string.no, (dialog, which) -> dialog.dismiss());
         AlertDialog dialog = builder.create();

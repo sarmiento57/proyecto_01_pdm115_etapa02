@@ -27,19 +27,22 @@ public class RecetaDAO {
         this.ws = new WebServiceHelper(context);
     }
 
-    public void addReceta(Receta receta) {
+    public void addReceta(Receta receta, CallbackBoolean callback) {
         if (!existeDoctor(receta.getIdDoctor())) {
             Toast.makeText(context, context.getString(R.string.not_found_message) + context.getString(R.string.id_doctor), Toast.LENGTH_SHORT).show();
+            callback.onResult(false);
             return;
         }
 
         if (!existeCliente(receta.getIdCliente())) {
             Toast.makeText(context, context.getString(R.string.not_found_message) + context.getString(R.string.id_doctor), Toast.LENGTH_SHORT).show();
+            callback.onResult(false);
             return;
         }
 
         if (isDuplicate(receta.getIdReceta())) {
             Toast.makeText(context, R.string.duplicate_message, Toast.LENGTH_SHORT).show();
+            callback.onResult(false);
             return;
         }
 
@@ -50,8 +53,42 @@ public class RecetaDAO {
         values.put("FECHAEXPEDIDA", receta.getFechaExpedida());
         values.put("DESCRIPCION", receta.getDescripcion());
 
-        db.insert("RECETA", null, values);
-        Toast.makeText(context, R.string.save_message, Toast.LENGTH_SHORT).show();
+        long insercion = db.insert("RECETA", null, values);
+        if (insercion == -1) {
+            Toast.makeText(context, R.string.save_error, Toast.LENGTH_SHORT).show();
+            callback.onResult(false);
+        } else {
+            // Insert into MySQL
+            Map<String, String> params = new HashMap<>();
+            params.put("iddoctor", String.valueOf(receta.getIdDoctor()));
+            params.put("idcliente", String.valueOf(receta.getIdCliente()));
+            params.put("idreceta", String.valueOf(receta.getIdReceta()));
+            params.put("fechaexpedida", receta.getFechaExpedida());
+            params.put("descripcion", receta.getDescripcion());
+
+            ws.post("receta/agregar_receta.php", params,
+                    response -> {
+                        try {
+                            JSONObject json = new JSONObject(response);
+                            boolean success = json.optBoolean("success", false);
+                            if (success) {
+                                Toast.makeText(context, R.string.save_message, Toast.LENGTH_SHORT).show();
+                                callback.onResult(true);
+                            } else {
+                                Toast.makeText(context, R.string.mysql_insert_error + json.optString("error"), Toast.LENGTH_LONG).show();
+                                callback.onResult(false);
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                            Toast.makeText(context, "Respuesta JSON inválida", Toast.LENGTH_SHORT).show();
+                            callback.onResult(false);
+                        }
+                    },
+                    error -> {
+                        Toast.makeText(context, R.string.mysql_insert_connection_error, Toast.LENGTH_LONG).show();
+                        callback.onResult(false);
+                    });
+        }
     }
 
 
@@ -118,19 +155,41 @@ public class RecetaDAO {
         }
     }
 
-    public void deleteReceta(int idReceta) {
-        int rowsAffected = db.delete(
-                "RECETA",
-                "IDRECETA=?",
-                new String[]{
-                        String.valueOf(idReceta)
-                });
+    public void deleteReceta(int idReceta, Runnable onComplete) {
+        Map<String, String> params = new HashMap<>();
+        params.put("idreceta", String.valueOf(idReceta));
 
-        if (rowsAffected == 0) {
-            Toast.makeText(context, context.getString(R.string.not_found_message) + context.getString(R.string.id_receta), Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(context, R.string.delete_message, Toast.LENGTH_SHORT).show();
-        }
+        ws.post("receta/eliminar_receta.php", params,
+                response -> {
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        boolean success = json.optBoolean("success", false);
+                        if (success) {
+                            int rowsAffected = db.delete(
+                                    "RECETA",
+                                    "IDRECETA=?",
+                                    new String[]{
+                                            String.valueOf(idReceta)
+                                    });
+
+                            if (rowsAffected == 0) {
+                                Toast.makeText(context, context.getString(R.string.not_found_message) + context.getString(R.string.id_receta), Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(context, R.string.delete_message, Toast.LENGTH_SHORT).show();
+                            }
+                            if (onComplete != null) onComplete.run();
+                        } else {
+                            Toast.makeText(context, R.string.mysql_delete_error + json.optString("error"), Toast.LENGTH_LONG).show();
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        Toast.makeText(context, "Respuesta JSON inválida", Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.mysql_delete_connection_error, Toast.LENGTH_LONG).show();
+                }
+        );
     }
 
     public List<Doctor> getAllDoctor() {
@@ -195,6 +254,88 @@ public class RecetaDAO {
         return existe;
     }
 
+    // contar recetas de sqlite
+    private int contarRecetasSQLite() {
+        Cursor cursor = db.rawQuery("SELECT COUNT(*) FROM RECETA", null);
+        int count = 0;
+        if (cursor.moveToFirst()) {
+            count = cursor.getInt(0);
+        }
+        cursor.close();
+        return count;
+    }
+
+    // contar las recetas de mysql
+    private void contarRecetasMySQL(Response.Listener<Integer> callback) {
+        ws.post("receta/contar_recetas.php", new HashMap<>(),
+                response -> {
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        int count = json.getInt("count");
+                        callback.onResponse(count);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        callback.onResponse(-1);
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.mysql_count_error, Toast.LENGTH_SHORT).show();
+                    callback.onResponse(-1);
+                });
+    }
+
+    // metodo para verificar si las tablas estan sincronizadas
+    public void tablasSincronizadas(CallbackBoolean callback) {
+        int countSQLite = contarRecetasSQLite();
+        contarRecetasMySQL(countMySQL -> {
+            if (countMySQL == -1) {
+                callback.onResult(false);
+            } else {
+                callback.onResult(countSQLite == countMySQL);
+            }
+        });
+    }
+
+    // sincronizar receta
+    public void sincronizarRecetaMysql(Receta receta) {
+        isDuplicateMysql(receta.getIdReceta(), existsId -> {
+            if (!existsId) {
+                Map<String, String> params = new HashMap<>();
+                params.put("iddoctor", String.valueOf(receta.getIdDoctor()));
+                params.put("idcliente", String.valueOf(receta.getIdCliente()));
+                params.put("idreceta", String.valueOf(receta.getIdReceta()));
+                params.put("fechaexpedida", receta.getFechaExpedida());
+                params.put("descripcion", receta.getDescripcion());
+                ws.post("receta/sincronizar_sqlite_mysql.php", params,
+                        response -> {
+                        },
+                        error -> {
+                            Toast.makeText(context, R.string.mysql_sync_error, Toast.LENGTH_SHORT).show();
+                        });
+            }
+        });
+    }
+
+    // Verificar si la receta existe en MySQL
+    private void isDuplicateMysql(int idReceta, Response.Listener<Boolean> callback) {
+        Map<String, String> params = new HashMap<>();
+        params.put("idreceta", String.valueOf(idReceta));
+        ws.post("receta/verificar_receta.php", params,
+                response -> {
+                    try {
+                        JSONObject obj = new JSONObject(response);
+                        callback.onResponse(obj.optBoolean("existe", false));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        callback.onResponse(false);
+                    }
+                },
+                error -> {
+                    Toast.makeText(context, R.string.connection_error, Toast.LENGTH_SHORT).show();
+                    callback.onResponse(false);
+                });
+    }
+
     // Consultar recetas por cliente desde MySQL
     public void getRecetasByClienteMySQL(int idCliente, Response.Listener<List<Receta>> callback) {
         Map<String, String> params = new HashMap<>();
@@ -224,17 +365,17 @@ public class RecetaDAO {
                             callback.onResponse(recetas);
                         } else {
                             Toast.makeText(context, R.string.mysql_query_error + jsonResponse.optString("error"), Toast.LENGTH_LONG).show();
-                            callback.onResponse(new ArrayList<>()); // Return empty list on error
+                            callback.onResponse(new ArrayList<>());
                         }
                     } catch (JSONException e) {
                         e.printStackTrace();
                         Toast.makeText(context, "Respuesta JSON inválida", Toast.LENGTH_SHORT).show();
-                        callback.onResponse(new ArrayList<>()); // Return empty list on error
+                        callback.onResponse(new ArrayList<>());
                     }
                 },
                 error -> {
                     Toast.makeText(context, R.string.connection_error, Toast.LENGTH_LONG).show();
-                    callback.onResponse(new ArrayList<>()); // Return empty list on connection error
+                    callback.onResponse(new ArrayList<>());
                 });
     }
 }
