@@ -32,6 +32,8 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
     private ArticuloMySQLDAO articuloMySQLDAO;  // para web service (MySQL)
     private ArticuloDAO articuloSQLiteDAO;      // para SQLite local
     private SQLiteDatabase conection;
+    // Variable global para almacenar el orden de los artículos
+    private String orden = "";
 
 
 
@@ -83,42 +85,38 @@ public class ArticuloMySQLActivity extends AppCompatActivity {
                 conection.close();
             });
         });
-        //consultar precio mas barato o caro los ordena por precio
+        // Configuración del Spinner para ordenar por precio
         Spinner spinnerOrden = findViewById(R.id.spinnerOrdenPrecio);
         ArrayAdapter<String> adapterSpinner = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item,
-                Arrays.asList(getString(R.string.option_all), getString(R.string.option_cheaper), getString(R.string.option_expensive)));
+                Arrays.asList(getString(R.string.option_cheaper), getString(R.string.option_expensive)));  // Sólo opciones de más barato y más caro
         adapterSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerOrden.setAdapter(adapterSpinner);
-
         spinnerOrden.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position == 0) {
-                    //Mestra todos los articulos
-                    articuloMySQLDAO.getAllArticuloMySQL(articulos -> {
-                        runOnUiThread(() -> {
-                            listaArticuloMySQ.clear();
-                            listaArticuloMySQ.addAll(articulos);
-                            adapterArticuloMySQ.notifyDataSetChanged();
-                        });
-                    });
-                } else {
-                    // mas barato o mas caro
-                    String orden = position == 1 ? "asc" : "desc";  // 1 = Más barato, 2 = Más caro
-                    articuloMySQLDAO.getArticulosOrdenadosPorPrecio(orden, articulos -> {
-                        runOnUiThread(() -> {
-                            listaArticuloMySQ.clear();
-                            listaArticuloMySQ.addAll(articulos);
-                            adapterArticuloMySQ.notifyDataSetChanged();
-                        });
-                    });
+                    orden = "asc";  // Más barato (ascendente)
+                } else if (position == 1) {
+                    orden = "desc";  // Más caro (descendente)
                 }
             }
-
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
             }
+        });
+        // Configuración del botón de búsqueda para mostrar artículo más barato o más caro
+        Button btnSearchPriceMySQL = findViewById(R.id.btnSearchPriceMySQL);
+        btnSearchPriceMySQL.setOnClickListener(v -> {
+            articuloMySQLDAO.getArticulosOrdenadosPorPrecio(orden, articulos -> {
+                if (!articulos.isEmpty()) {
+                    Articulo articulo = articulos.get(0);
+                    Toast.makeText(ArticuloMySQLActivity.this, "Artículo seleccionado: " + articulo.getNombreArticulo(), Toast.LENGTH_SHORT).show();
+                    viewArticuloMySQL(articulo);  // Mostrar el artículo en la UI
+                } else {
+                    Toast.makeText(ArticuloMySQLActivity.this, "No hay artículos disponibles.", Toast.LENGTH_SHORT).show();
+                }
+            });
         });
     }
     private void fillList() {
